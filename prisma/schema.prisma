@@ -1,13 +1,291 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// ════════════════════════════════════════════════════════════════════
+//  AIP TERRAIN — Schéma Prisma (avec Zones et Coordinateurs)
+//
+//  Workflow de validation à 2 niveaux (systématique) :
+//    Commercial → Superviseur (niv.1) → Coordinateur (niv.2) → Validé
+//
+//  4 rôles : ADMIN, COORDINATEUR, SUPERVISEUR, COMMERCIAL
+//
+//  Organisation géographique :
+//    - Une ZONE est définie librement par l'admin (indépendante des communes)
+//    - Une zone a UN coordinateur (relation 1-à-1)
+//    - Les superviseurs sont rattachés à une zone
+//    - Les commerciaux sont rattachés à un superviseur
+//    => La zone est le pivot : elle relie coordinateur, superviseurs et commerciaux.
+// ════════════════════════════════════════════════════════════════════
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  ENUMS
+// ════════════════════════════════════════════════════════════════════
+
+/// Les 4 rôles de la plateforme.
+enum Role {
+  ADMIN         // Pilotage global AIP
+  COORDINATEUR  // Validation niveau 2, pilotage de zone
+  SUPERVISEUR   // Validation niveau 1
+  COMMERCIAL    // Collecte terrain
+  CLIENT        // Lecture seule : KPIs + enregistrements validés (ex: MANSA BANK)
+}
+
+/// Type de soumission terrain.
+enum SubmissionType {
+  PROSPECT // Recrutement d'un utilisateur final (client banque)
+  MARCHAND // Enrôlement d'un commerce partenaire
+}
+
+/// États du workflow de validation à 2 niveaux.
+///   DRAFT → SUBMITTED → SUPERVISOR_APPROVED → VALIDATED
+///   (rejet possible à chaque niveau : REJECTED_L1 / REJECTED_L2)
+enum SubmissionStatus {
+  DRAFT // Brouillon local, jamais soumis
+  SUBMITTED // Soumis, en attente de validation niveau 1 (superviseur)
+  SUPERVISOR_APPROVED // Validé niveau 1, en attente niveau 2 (coordinateur)
+  VALIDATED // Validé niveau 2 — validation finale
+  REJECTED_L1 // Rejeté par le superviseur (niveau 1)
+  REJECTED_L2 // Rejeté par le coordinateur (niveau 2)
+}
+
+/// Statut d'installation de l'application bancaire (donnée digitale du prospect).
+enum AppStatus {
+  NOT_INSTALLED
+  INSTALLED
+  ACTIVATED
+}
+
+/// Statut de synchronisation d'une soumission créée offline.
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+
+/// Type d'action dans l'historique de validation (traçabilité / audit).
+enum ValidationAction {
+  SUBMITTED // Soumission initiale par le commercial
+  SUPERVISOR_APPROVED // Validation niveau 1 par le superviseur
+  VALIDATED // Validation niveau 2 (finale) par le coordinateur
+  REJECTED_L1 // Rejet niveau 1
+  REJECTED_L2 // Rejet niveau 2
+  RETURNED // Renvoyé pour correction
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  ZONE (pivot géographique/organisationnel)
+// ════════════════════════════════════════════════════════════════════
+
+/// Zone définie librement par l'admin (ex: "Zone Sud", "Zone Abidjan-Est").
+/// Indépendante des communes. Pilotée par UN coordinateur.
+model Zone {
+  id          String   @id @default(uuid())
+  name        String   @unique // ex: "Zone Sud"
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // ── Coordinateur de la zone (relation 1-à-1) ──
+  // Un coordinateur = une seule zone, une zone = un seul coordinateur.
+  coordinatorId String? @unique
+  coordinator   User?   @relation("ZoneCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
+
+  // ── Membres rattachés à la zone ──
+  members User[] @relation("ZoneMembers") // superviseurs et commerciaux de la zone
+
+  @@index([isActive])
+  @@map("zones")
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  UTILISATEURS & AUTHENTIFICATION
+// ════════════════════════════════════════════════════════════════════
+
+/// Compte utilisateur — couvre les 4 rôles.
+///
+/// Rattachements :
+///   - Un COORDINATEUR pilote UNE zone (via la relation ZoneCoordinator côté Zone)
+///   - Un SUPERVISEUR appartient à une zone (zoneId) — son coordinateur = celui de la zone
+///   - Un COMMERCIAL appartient à un superviseur (supervisorId) et à une zone (zoneId)
+model User {
+  id        String   @id @default(uuid())
+  matricule String   @unique // ex: AGT-0042, SUP-003, COORD-01
+  fullName  String
+  email     String?  @unique
+  phone     String   @unique
+  password  String // hash bcrypt
+  role      Role
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Rattachement à une zone (superviseurs et commerciaux) ──
+  zoneId String?
+  zone   Zone?   @relation("ZoneMembers", fields: [zoneId], references: [id], onDelete: SetNull)
+
+  // ── Zone pilotée (uniquement pour le coordinateur) ──
+  coordinatedZone Zone? @relation("ZoneCoordinator")
+
+  // ── Hiérarchie commercial ↔ superviseur ──
+  supervisorId String?
+  supervisor   User?   @relation("SupervisorToCommercials", fields: [supervisorId], references: [id], onDelete: SetNull)
+  commercials  User[]  @relation("SupervisorToCommercials")
+
+  // ── Relations métier ──
+  submissions       Submission[] @relation("CommercialSubmissions") // soumissions créées (commercial)
+  level1Validations Submission[] @relation("Level1Validator") // validées niv.1 (superviseur)
+  level2Validations Submission[] @relation("Level2Validator") // validées niv.2 (coordinateur)
+  validationHistory ValidationHistory[]
+  refreshTokens     RefreshToken[]
+
+  @@index([role])
+  @@index([zoneId])
+  @@index([supervisorId])
+  @@index([isActive])
+  @@map("users")
+}
+
+/// Refresh tokens pour l'auth JWT.
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  SOUMISSIONS (prospects + marchands)
+// ════════════════════════════════════════════════════════════════════
+
+/// Soumission terrain unifiée : un PROSPECT ou un MARCHAND.
+model Submission {
+  id     String           @id @default(uuid())
+  type   SubmissionType
+  status SubmissionStatus @default(DRAFT)
+
+  // ── Auteur (commercial) ──
+  commercialId String
+  commercial   User   @relation("CommercialSubmissions", fields: [commercialId], references: [id], onDelete: Restrict)
+
+  // ── Zone de la soumission (dénormalisée pour faciliter le filtrage coordinateur) ──
+  // Recopiée depuis la zone du commercial au moment de la soumission.
+  zoneId String?
+
+  // ── Géolocalisation ──
+  latitude      Float?
+  longitude     Float?
+  gpsAccuracy   Float?
+  gpsCapturedAt DateTime?
+  commune       String
+  quartier      String?
+  addressNote   String?
+
+  // ── Champs PROSPECT ──
+  prospectFullName String?
+  prospectPhone    String?
+  prospectGender   String?
+  prospectAge      Int?
+  appStatus        AppStatus?
+  phoneType        String?
+  bankAccount      String?
+  observations     String?
+
+  // ── Champs MARCHAND ──
+  merchantName     String?
+  merchantOwner    String?
+  merchantPhone    String?
+  merchantActivity String?
+  merchantRccm     String?
+
+  // ── Synchronisation offline ──
+  clientUuid     String     @unique
+  syncStatus     SyncStatus @default(SYNCED)
+  createdOffline Boolean    @default(false)
+
+  // ── Validation NIVEAU 1 (superviseur) ──
+  level1ValidatorId String?
+  level1Validator   User?     @relation("Level1Validator", fields: [level1ValidatorId], references: [id], onDelete: SetNull)
+  level1At          DateTime?
+  level1Comment     String?
+
+  // ── Validation NIVEAU 2 (coordinateur) ──
+  level2ValidatorId String?
+  level2Validator   User?     @relation("Level2Validator", fields: [level2ValidatorId], references: [id], onDelete: SetNull)
+  level2At          DateTime?
+  level2Comment     String?
+
+  // ── Timestamps ──
+  createdAt   DateTime  @default(now())
+  submittedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  // ── Relations ──
+  photos            Photo[]
+  validationHistory ValidationHistory[]
+
+  // ── Index ──
+  @@index([commercialId])
+  @@index([zoneId])
+  @@index([status])
+  @@index([type])
+  @@index([commune])
+  @@index([createdAt])
+  @@index([prospectPhone])
+  @@index([status, type])
+  @@index([level1ValidatorId])
+  @@index([level2ValidatorId])
+  @@map("submissions")
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  PHOTOS PREUVES (métadonnées Cloudinary uniquement)
+// ════════════════════════════════════════════════════════════════════
+
+model Photo {
+  id           String     @id @default(uuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  cloudinaryPublicId String
+  url                String
+  category           String?
+  width              Int?
+  height             Int?
+  bytes              Int?
+  createdAt          DateTime @default(now())
+
+  @@index([submissionId])
+  @@map("photos")
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  HISTORIQUE DE VALIDATION (traçabilité / audit / litiges client)
+// ════════════════════════════════════════════════════════════════════
+
+model ValidationHistory {
+  id           String     @id @default(uuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  actorId      String
+  actor        User       @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action       ValidationAction
+  comment      String?
+  createdAt    DateTime   @default(now())
+
+  @@index([submissionId])
+  @@index([actorId])
+  @@map("validation_history")
 }
