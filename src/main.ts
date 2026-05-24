@@ -8,6 +8,7 @@ async function bootstrap() {
   // CORS: autorise le frontend local et en production
   const allowedOrigins = [
     'http://localhost:5173',
+    'https://frontend-taupe-two-91.vercel.app',
     process.env.FRONTEND_URL,
   ].filter(Boolean) as string[];
 

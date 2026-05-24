@@ -7,6 +7,7 @@ async function bootstrap() {
     app.setGlobalPrefix('api');
     const allowedOrigins = [
         'http://localhost:5173',
+        'https://frontend-taupe-two-91.vercel.app',
         process.env.FRONTEND_URL,
     ].filter(Boolean);
     app.enableCors({
