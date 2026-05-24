@@ -15,7 +15,7 @@ type UserWithoutPassword = Omit<User, 'password'>;
 /**
  * Réponse retournée après login ou refresh.
  */
-interface AuthResponse {
+export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   user: UserWithoutPassword;
@@ -153,7 +153,7 @@ export class AuthService {
     // Génère l'access token (courte durée)
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('jwt.secret'),
-      expiresIn: this.configService.get<string>('jwt.expiresIn') || '15m',
+      expiresIn: (this.configService.get<string>('jwt.expiresIn') || '15m') as any,
     });
 
     // Génère un refresh token aléatoire (stocké en base)

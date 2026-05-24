@@ -50,8 +50,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Utilisateur non trouvé');
     }
 
-    if (!user.isActive) {
-      throw new UnauthorizedException('Compte désactivé');
+    if (!user.isActive || user.status !== 'ACTIF') {
+      const messages: Record<string, string> = {
+        SUSPENDU: 'Compte suspendu. Contactez votre superviseur.',
+        EN_ATTENTE: 'Compte en attente de validation.',
+        DESACTIVE: 'Compte désactivé.',
+      };
+      throw new UnauthorizedException(
+        messages[user.status] || 'Compte désactivé',
+      );
     }
 
     // Retourne l'utilisateur SANS le mot de passe

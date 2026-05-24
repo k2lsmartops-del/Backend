@@ -74,4 +74,12 @@ export class UsersController {
   activate(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.activate(id);
   }
+
+  /**
+   * PATCH /users/:id/suspend — Suspendre un utilisateur.
+   */
+  @Patch(':id/suspend')
+  suspend(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.suspend(id);
+  }
 }

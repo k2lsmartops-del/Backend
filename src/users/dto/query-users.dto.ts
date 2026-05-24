@@ -1,4 +1,4 @@
-import { Role } from '@prisma/client';
+import { AgentStatus, Role } from '@prisma/client';
 import {
   IsBoolean,
   IsEnum,
@@ -21,6 +21,10 @@ export class QueryUsersDto extends PaginationDto {
   @IsOptional()
   @IsEnum(Role, { message: 'Rôle invalide' })
   role?: Role;
+
+  @IsOptional()
+  @IsEnum(AgentStatus, { message: 'Statut invalide' })
+  status?: AgentStatus;
 
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)

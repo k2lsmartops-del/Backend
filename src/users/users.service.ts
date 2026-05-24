@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { AgentStatus, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -20,8 +20,20 @@ const USER_SELECT = {
   fullName: true,
   email: true,
   phone: true,
+  phoneSecondary: true,
   role: true,
+  status: true,
   isActive: true,
+  // Informations personnelles
+  avatarUrl: true,
+  gender: true,
+  birthDate: true,
+  cniNumber: true,
+  address: true,
+  educationLevel: true,
+  languages: true,
+  // Informations professionnelles
+  recruitedAt: true,
   zoneId: true,
   supervisorId: true,
   createdAt: true,
@@ -54,16 +66,32 @@ export class UsersService {
     // Hash le mot de passe
     const hashedPassword = await bcrypt.hash(dto.password, 12);
 
+    // Détermine isActive depuis le statut
+    const status = dto.status || AgentStatus.ACTIF;
+    const isActive = status === AgentStatus.ACTIF;
+
     return this.prisma.user.create({
       data: {
         matricule,
         fullName: dto.fullName,
         email: dto.email || null,
         phone: dto.phone,
+        phoneSecondary: dto.phoneSecondary || null,
         password: hashedPassword,
         role: dto.role,
+        status,
+        isActive,
         zoneId: dto.zoneId || null,
         supervisorId: dto.supervisorId || null,
+        // Informations personnelles
+        avatarUrl: dto.avatarUrl || null,
+        gender: dto.gender || null,
+        birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
+        cniNumber: dto.cniNumber || null,
+        address: dto.address || null,
+        educationLevel: dto.educationLevel || null,
+        languages: dto.languages || [],
+        recruitedAt: dto.recruitedAt ? new Date(dto.recruitedAt) : null,
       },
       select: USER_SELECT,
     });
@@ -78,6 +106,7 @@ export class UsersService {
       limit = 20,
       search,
       role,
+      status,
       isActive,
       zoneId,
       supervisorId,
@@ -88,6 +117,7 @@ export class UsersService {
     const where: Record<string, unknown> = {};
 
     if (role) where.role = role;
+    if (status) where.status = status;
     if (isActive !== undefined) where.isActive = isActive;
     if (zoneId) where.zoneId = zoneId;
     if (supervisorId) where.supervisorId = supervisorId;
@@ -184,10 +214,33 @@ export class UsersService {
     if (dto.fullName !== undefined) data.fullName = dto.fullName;
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.phone !== undefined) data.phone = dto.phone;
+    if (dto.phoneSecondary !== undefined) data.phoneSecondary = dto.phoneSecondary;
     if (dto.role !== undefined) data.role = dto.role;
-    if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.zoneId !== undefined) data.zoneId = dto.zoneId;
     if (dto.supervisorId !== undefined) data.supervisorId = dto.supervisorId;
+
+    // Gestion du statut agent (4 états)
+    if (dto.status !== undefined) {
+      data.status = dto.status;
+      data.isActive = dto.status === AgentStatus.ACTIF;
+    } else if (dto.isActive !== undefined) {
+      data.isActive = dto.isActive;
+      data.status = dto.isActive ? AgentStatus.ACTIF : AgentStatus.DESACTIVE;
+    }
+
+    // Informations personnelles
+    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
+    if (dto.gender !== undefined) data.gender = dto.gender;
+    if (dto.birthDate !== undefined) {
+      data.birthDate = dto.birthDate ? new Date(dto.birthDate) : null;
+    }
+    if (dto.cniNumber !== undefined) data.cniNumber = dto.cniNumber;
+    if (dto.address !== undefined) data.address = dto.address;
+    if (dto.educationLevel !== undefined) data.educationLevel = dto.educationLevel;
+    if (dto.languages !== undefined) data.languages = dto.languages;
+    if (dto.recruitedAt !== undefined) {
+      data.recruitedAt = dto.recruitedAt ? new Date(dto.recruitedAt) : null;
+    }
 
     // Hash le nouveau mot de passe si fourni
     if (dto.password) {
@@ -213,7 +266,7 @@ export class UsersService {
 
     return this.prisma.user.update({
       where: { id },
-      data: { isActive: false },
+      data: { isActive: false, status: AgentStatus.DESACTIVE },
       select: USER_SELECT,
     });
   }
@@ -229,7 +282,24 @@ export class UsersService {
 
     return this.prisma.user.update({
       where: { id },
-      data: { isActive: true },
+      data: { isActive: true, status: AgentStatus.ACTIF },
+      select: USER_SELECT,
+    });
+  }
+
+  /**
+   * Suspend un utilisateur (blocage temporaire).
+   * Le compte n'est plus utilisable mais peut être réactivé.
+   */
+  async suspend(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive: false, status: AgentStatus.SUSPENDU },
       select: USER_SELECT,
     });
   }

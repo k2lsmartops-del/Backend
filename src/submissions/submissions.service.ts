@@ -94,9 +94,7 @@ export class SubmissionsService {
         latitude: dto.latitude || null,
         longitude: dto.longitude || null,
         gpsAccuracy: dto.gpsAccuracy || null,
-        gpsCapturedAt: dto.gpsCapturedAt
-          ? new Date(dto.gpsCapturedAt)
-          : null,
+        gpsCapturedAt: dto.gpsCapturedAt ? new Date(dto.gpsCapturedAt) : null,
         // Prospect
         prospectFullName: dto.prospectFullName || null,
         prospectPhone: dto.prospectPhone || null,
@@ -460,9 +458,7 @@ export class SubmissionsService {
   private validateFieldsByType(dto: CreateSubmissionDto) {
     if (dto.type === SubmissionType.PROSPECT) {
       if (!dto.prospectFullName) {
-        throw new BadRequestException(
-          'Le nom du prospect est obligatoire',
-        );
+        throw new BadRequestException('Le nom du prospect est obligatoire');
       }
       if (!dto.prospectPhone) {
         throw new BadRequestException(
@@ -473,9 +469,7 @@ export class SubmissionsService {
 
     if (dto.type === SubmissionType.MARCHAND) {
       if (!dto.merchantName) {
-        throw new BadRequestException(
-          'Le nom du commerce est obligatoire',
-        );
+        throw new BadRequestException('Le nom du commerce est obligatoire');
       }
       if (!dto.merchantPhone) {
         throw new BadRequestException(

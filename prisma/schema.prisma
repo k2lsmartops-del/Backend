@@ -67,6 +67,32 @@ enum SyncStatus {
   FAILED
 }
 
+/// Statut de l'agent (cycle de vie du compte).
+/// Conforme au document K2L Profils — Fiche (IV).
+enum AgentStatus {
+  ACTIF     // Opérationnel, autorisé à utiliser l'application
+  SUSPENDU  // Temporairement bloqué (disciplinaire, absence, fraude suspectée)
+  EN_ATTENTE // Pas encore validé (dossier en cours, formation non terminée)
+  DESACTIVE  // Compte fermé définitivement (fin de mission, démission)
+}
+
+/// Genre de l'utilisateur.
+enum Gender {
+  HOMME
+  FEMME
+}
+
+/// Type de document justificatif rattaché au profil utilisateur.
+enum DocumentType {
+  CNI           // Carte nationale d'identité
+  PHOTO_IDENTITE // Photo d'identité
+  CONTRAT       // Contrat signé
+  BADGE         // Badge terrain
+  RIB           // Relevé d'identité bancaire
+  MOBILE_MONEY  // Justificatif Mobile Money
+  AUTRE         // Autre document
+}
+
 /// Type d'action dans l'historique de validation (traçabilité / audit).
 enum ValidationAction {
   SUBMITTED // Soumission initiale par le commercial
@@ -119,11 +145,25 @@ model User {
   fullName  String
   email     String?  @unique
   phone     String   @unique
+  phoneSecondary String? // Contact secondaire
   password  String // hash bcrypt
   role      Role
-  isActive  Boolean  @default(true)
+  status    AgentStatus @default(ACTIF) // Statut du compte (Actif, Suspendu, En attente, Désactivé)
+  isActive  Boolean  @default(true) // Raccourci : true si status=ACTIF
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // ── Informations personnelles (document K2L § Profil Commercial) ──
+  avatarUrl    String?   // Photo de profil (URL Cloudinary)
+  gender       Gender?   // Sexe
+  birthDate    DateTime? // Date de naissance
+  cniNumber    String?   // Numéro de carte nationale d'identité
+  address      String?   // Adresse / commune de résidence
+  educationLevel String? // Niveau d'étude
+  languages    String[]  // Langues parlées (tableau)
+
+  // ── Informations professionnelles ──
+  recruitedAt  DateTime? // Date de recrutement
 
   // ── Rattachement à une zone (superviseurs et commerciaux) ──
   zoneId String?
@@ -143,11 +183,13 @@ model User {
   level2Validations Submission[] @relation("Level2Validator") // validées niv.2 (coordinateur)
   validationHistory ValidationHistory[]
   refreshTokens     RefreshToken[]
+  documents         UserDocument[] // Pièces justificatives du profil
 
   @@index([role])
   @@index([zoneId])
   @@index([supervisorId])
   @@index([isActive])
+  @@index([status])
   @@map("users")
 }
 
@@ -164,6 +206,30 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  DOCUMENTS UTILISATEUR (pièces justificatives du profil)
+// ════════════════════════════════════════════════════════════════════
+
+/// Documents rattachés au profil d'un utilisateur (CNI, contrat, badge, RIB, etc.).
+model UserDocument {
+  id     String       @id @default(uuid())
+  userId String
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type               DocumentType
+  label              String?  // Libellé libre (ex: "CNI recto")
+  cloudinaryPublicId String?
+  url                String   // URL du fichier
+  mimeType           String?  // ex: image/jpeg, application/pdf
+  bytes              Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@map("user_documents")
 }
 
 // ════════════════════════════════════════════════════════════════════
