@@ -325,6 +325,9 @@ export declare class SubmissionsService {
         editable: boolean;
         status: import("@prisma/client").$Enums.SubmissionStatus;
     }>;
+    remove(id: string, user: Omit<User, 'password'>): Promise<{
+        deleted: boolean;
+    }>;
     approveLevel1(id: string, user: Omit<User, 'password'>, comment?: string): Promise<{
         id: string;
         clientUuid: string;

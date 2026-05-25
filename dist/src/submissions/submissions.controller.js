@@ -47,6 +47,9 @@ let SubmissionsController = class SubmissionsController {
     update(id, dto, user) {
         return this.submissionsService.update(id, dto, user);
     }
+    remove(id, user) {
+        return this.submissionsService.remove(id, user);
+    }
     approveLevel1(id, dto, user) {
         return this.submissionsService.approveLevel1(id, user, dto.comment);
     }
@@ -114,6 +117,15 @@ __decorate([
     __metadata("design:paramtypes", [String, update_submission_dto_1.UpdateSubmissionDto, Object]),
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.COMMERCIAL),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], SubmissionsController.prototype, "remove", null);
 __decorate([
     (0, common_1.Patch)(':id/approve-l1'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPERVISEUR, client_1.Role.ADMIN),

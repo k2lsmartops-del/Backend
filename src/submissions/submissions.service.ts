@@ -426,6 +426,40 @@ export class SubmissionsService {
   }
 
   /**
+   * Supprime une soumission.
+   * RÈGLE : seules DRAFT ou SUBMITTED peuvent être supprimées par le propriétaire.
+   */
+  async remove(id: string, user: Omit<User, 'password'>) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id },
+      select: { id: true, status: true, commercialId: true },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Soumission non trouvée');
+    }
+
+    if (submission.commercialId !== user.id) {
+      throw new ForbiddenException(
+        'Vous ne pouvez supprimer que vos propres soumissions',
+      );
+    }
+
+    if (
+      submission.status !== SubmissionStatus.DRAFT &&
+      submission.status !== SubmissionStatus.SUBMITTED
+    ) {
+      throw new BadRequestException(
+        `Suppression impossible : la soumission est au statut "${submission.status}".`,
+      );
+    }
+
+    await this.prisma.submission.delete({ where: { id } });
+
+    return { deleted: true };
+  }
+
+  /**
    * Validation NIVEAU 1 par le SUPERVISEUR.
    * Passe de SUBMITTED → SUPERVISOR_APPROVED.
    */

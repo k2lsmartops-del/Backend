@@ -329,6 +329,9 @@ export declare class SubmissionsController {
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
+    remove(id: string, user: Omit<User, 'password'>): Promise<{
+        deleted: boolean;
+    }>;
     approveLevel1(id: string, dto: ValidateSubmissionDto, user: Omit<User, 'password'>): Promise<{
         id: string;
         status: import("@prisma/client").$Enums.SubmissionStatus;

@@ -310,6 +310,24 @@ let SubmissionsService = class SubmissionsService {
             submission.status === client_1.SubmissionStatus.SUBMITTED;
         return { editable, status: submission.status };
     }
+    async remove(id, user) {
+        const submission = await this.prisma.submission.findUnique({
+            where: { id },
+            select: { id: true, status: true, commercialId: true },
+        });
+        if (!submission) {
+            throw new common_1.NotFoundException('Soumission non trouvée');
+        }
+        if (submission.commercialId !== user.id) {
+            throw new common_1.ForbiddenException('Vous ne pouvez supprimer que vos propres soumissions');
+        }
+        if (submission.status !== client_1.SubmissionStatus.DRAFT &&
+            submission.status !== client_1.SubmissionStatus.SUBMITTED) {
+            throw new common_1.BadRequestException(`Suppression impossible : la soumission est au statut "${submission.status}".`);
+        }
+        await this.prisma.submission.delete({ where: { id } });
+        return { deleted: true };
+    }
     async approveLevel1(id, user, comment) {
         const submission = await this.prisma.submission.findUnique({
             where: { id },

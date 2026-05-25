@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -110,6 +111,19 @@ export class SubmissionsController {
     @CurrentUser() user: Omit<User, 'password'>,
   ) {
     return this.submissionsService.update(id, dto, user);
+  }
+
+  /**
+   * DELETE /submissions/:id — Supprimer une soumission (DRAFT ou SUBMITTED uniquement).
+   * Réservé au COMMERCIAL propriétaire.
+   */
+  @Delete(':id')
+  @Roles(Role.COMMERCIAL)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: Omit<User, 'password'>,
+  ) {
+    return this.submissionsService.remove(id, user);
   }
 
   /**
