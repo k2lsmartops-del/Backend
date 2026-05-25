@@ -55,9 +55,8 @@ enum SubmissionStatus {
 
 /// Statut d'installation de l'application bancaire (donnée digitale du prospect).
 enum AppStatus {
-  NOT_INSTALLED
-  INSTALLED
-  ACTIVATED
+  INSTALLED           // Application installée
+  INSTALLED_ACTIVATED // Application installée et activée
 }
 
 /// Statut de synchronisation d'une soumission créée offline.
