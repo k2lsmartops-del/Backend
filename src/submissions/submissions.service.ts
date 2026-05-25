@@ -46,6 +46,7 @@ const SUBMISSION_SELECT = {
   merchantPhone: true,
   merchantActivity: true,
   merchantRccm: true,
+  commercialId: true,
   // Sync
   syncStatus: true,
   createdOffline: true,

@@ -12,12 +12,11 @@ export declare class SubmissionsController {
     create(dto: CreateSubmissionDto, user: Omit<User, 'password'>): Promise<{
         _idempotent: boolean;
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -45,7 +44,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -69,12 +70,11 @@ export declare class SubmissionsController {
     } | {
         _duplicateWarning: string | undefined;
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -102,7 +102,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -138,12 +140,11 @@ export declare class SubmissionsController {
     findAll(query: QuerySubmissionsDto, user: Omit<User, 'password'>): Promise<{
         data: {
             id: string;
-            status: import("@prisma/client").$Enums.SubmissionStatus;
-            createdAt: Date;
-            updatedAt: Date;
-            zoneId: string | null;
             clientUuid: string;
             type: import("@prisma/client").$Enums.SubmissionType;
+            status: import("@prisma/client").$Enums.SubmissionStatus;
+            commercialId: string;
+            zoneId: string | null;
             latitude: number | null;
             longitude: number | null;
             gpsAccuracy: number | null;
@@ -171,7 +172,9 @@ export declare class SubmissionsController {
             level1Comment: string | null;
             level2At: Date | null;
             level2Comment: string | null;
+            createdAt: Date;
             submittedAt: Date | null;
+            updatedAt: Date;
             commercial: {
                 id: string;
                 matricule: string;
@@ -206,12 +209,11 @@ export declare class SubmissionsController {
     }>;
     findOne(id: string, user: Omit<User, 'password'>): Promise<{
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -239,7 +241,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -274,12 +278,11 @@ export declare class SubmissionsController {
     }>;
     update(id: string, dto: UpdateSubmissionDto, user: Omit<User, 'password'>): Promise<{
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -307,7 +310,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -334,12 +339,11 @@ export declare class SubmissionsController {
     }>;
     approveLevel1(id: string, dto: ValidateSubmissionDto, user: Omit<User, 'password'>): Promise<{
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -367,7 +371,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -391,12 +397,11 @@ export declare class SubmissionsController {
     }>;
     rejectLevel1(id: string, dto: RejectSubmissionDto, user: Omit<User, 'password'>): Promise<{
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -424,7 +429,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -448,12 +455,11 @@ export declare class SubmissionsController {
     }>;
     approveLevel2(id: string, dto: ValidateSubmissionDto, user: Omit<User, 'password'>): Promise<{
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -481,7 +487,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -505,12 +513,11 @@ export declare class SubmissionsController {
     }>;
     rejectLevel2(id: string, dto: RejectSubmissionDto, user: Omit<User, 'password'>): Promise<{
         id: string;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        createdAt: Date;
-        updatedAt: Date;
-        zoneId: string | null;
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
+        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
@@ -538,7 +545,9 @@ export declare class SubmissionsController {
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
+        createdAt: Date;
         submittedAt: Date | null;
+        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;

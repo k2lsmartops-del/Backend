@@ -11,6 +11,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
@@ -68,6 +69,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
@@ -137,6 +139,7 @@ export declare class SubmissionsService {
             clientUuid: string;
             type: import("@prisma/client").$Enums.SubmissionType;
             status: import("@prisma/client").$Enums.SubmissionStatus;
+            commercialId: string;
             zoneId: string | null;
             latitude: number | null;
             longitude: number | null;
@@ -201,6 +204,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
@@ -269,6 +273,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
@@ -333,6 +338,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
@@ -390,6 +396,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
@@ -447,6 +454,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
@@ -504,6 +512,7 @@ export declare class SubmissionsService {
         clientUuid: string;
         type: import("@prisma/client").$Enums.SubmissionType;
         status: import("@prisma/client").$Enums.SubmissionStatus;
+        commercialId: string;
         zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
