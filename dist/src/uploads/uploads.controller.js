@@ -22,8 +22,8 @@ let UploadsController = class UploadsController {
     constructor(uploadsService) {
         this.uploadsService = uploadsService;
     }
-    getSignature(dto, user) {
-        return this.uploadsService.generateSignature(user.id, dto.folder, dto.publicId);
+    getSignature(dto = {}, user) {
+        return this.uploadsService.generateSignature(user.id, dto?.folder, dto?.publicId);
     }
 };
 exports.UploadsController = UploadsController;

@@ -14,13 +14,13 @@ export class UploadsController {
 
   @Post('signature')
   getSignature(
-    @Body() dto: SignatureRequestDto,
+    @Body() dto: SignatureRequestDto = {} as SignatureRequestDto,
     @CurrentUser() user: Omit<User, 'password'>,
   ) {
     return this.uploadsService.generateSignature(
       user.id,
-      dto.folder,
-      dto.publicId,
+      dto?.folder,
+      dto?.publicId,
     );
   }
 }
