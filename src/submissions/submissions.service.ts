@@ -187,7 +187,12 @@ export class SubmissionsService {
    * Chaque soumission est traitée individuellement : un échec n'empêche pas les autres.
    */
   async syncBatch(dtos: CreateSubmissionDto[], user: Omit<User, 'password'>) {
-    const results: { clientUuid: string; status: string; data?: unknown; error?: string }[] = [];
+    const results: {
+      clientUuid: string;
+      status: string;
+      data?: unknown;
+      error?: string;
+    }[] = [];
 
     for (const dto of dtos) {
       try {
@@ -195,7 +200,11 @@ export class SubmissionsService {
         results.push({ clientUuid: dto.clientUuid, status: 'synced', data });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erreur inconnue';
-        results.push({ clientUuid: dto.clientUuid, status: 'failed', error: message });
+        results.push({
+          clientUuid: dto.clientUuid,
+          status: 'failed',
+          error: message,
+        });
       }
     }
 
@@ -217,8 +226,6 @@ export class SubmissionsService {
    */
   async findAll(query: QuerySubmissionsDto, user: Omit<User, 'password'>) {
     const {
-      page = 1,
-      limit = 20,
       type,
       status,
       zoneId,
@@ -226,6 +233,8 @@ export class SubmissionsService {
       commune,
       search,
     } = query;
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {};

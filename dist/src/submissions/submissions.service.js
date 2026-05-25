@@ -153,7 +153,11 @@ let SubmissionsService = class SubmissionsService {
             }
             catch (err) {
                 const message = err instanceof Error ? err.message : 'Erreur inconnue';
-                results.push({ clientUuid: dto.clientUuid, status: 'failed', error: message });
+                results.push({
+                    clientUuid: dto.clientUuid,
+                    status: 'failed',
+                    error: message,
+                });
             }
         }
         return {
@@ -164,7 +168,9 @@ let SubmissionsService = class SubmissionsService {
         };
     }
     async findAll(query, user) {
-        const { page = 1, limit = 20, type, status, zoneId, commercialId, commune, search, } = query;
+        const { type, status, zoneId, commercialId, commune, search, } = query;
+        const page = Number(query.page) || 1;
+        const limit = Number(query.limit) || 20;
         const skip = (page - 1) * limit;
         const where = {};
         switch (user.role) {
