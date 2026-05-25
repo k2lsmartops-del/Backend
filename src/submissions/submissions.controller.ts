@@ -13,6 +13,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { SubmissionsService } from './submissions.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
+import { UpdateSubmissionDto } from './dto/update-submission.dto';
 import { QuerySubmissionsDto } from './dto/query-submissions.dto';
 import { SyncSubmissionsDto } from './dto/sync-submission.dto';
 import { ValidateSubmissionDto } from './dto/validate-submission.dto';
@@ -74,6 +75,19 @@ export class SubmissionsController {
   }
 
   /**
+   * GET /submissions/:id/check-editable — Vérifie si la soumission est modifiable.
+   * Retourne { editable: boolean, status: string }.
+   */
+  @Get(':id/check-editable')
+  @Roles(Role.COMMERCIAL)
+  checkEditable(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: Omit<User, 'password'>,
+  ) {
+    return this.submissionsService.checkEditable(id, user);
+  }
+
+  /**
    * GET /submissions/:id — Détail d'une soumission.
    */
   @Get(':id')
@@ -82,6 +96,20 @@ export class SubmissionsController {
     @CurrentUser() user: Omit<User, 'password'>,
   ) {
     return this.submissionsService.findOne(id, user);
+  }
+
+  /**
+   * PATCH /submissions/:id — Modifier une soumission (DRAFT ou SUBMITTED uniquement).
+   * Réservé au COMMERCIAL propriétaire.
+   */
+  @Patch(':id')
+  @Roles(Role.COMMERCIAL)
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSubmissionDto,
+    @CurrentUser() user: Omit<User, 'password'>,
+  ) {
+    return this.submissionsService.update(id, dto, user);
   }
 
   /**

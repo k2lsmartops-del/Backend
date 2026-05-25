@@ -19,6 +19,7 @@ const current_user_decorator_1 = require("../common/decorators/current-user.deco
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const submissions_service_1 = require("./submissions.service");
 const create_submission_dto_1 = require("./dto/create-submission.dto");
+const update_submission_dto_1 = require("./dto/update-submission.dto");
 const query_submissions_dto_1 = require("./dto/query-submissions.dto");
 const sync_submission_dto_1 = require("./dto/sync-submission.dto");
 const validate_submission_dto_1 = require("./dto/validate-submission.dto");
@@ -37,8 +38,14 @@ let SubmissionsController = class SubmissionsController {
     findAll(query, user) {
         return this.submissionsService.findAll(query, user);
     }
+    checkEditable(id, user) {
+        return this.submissionsService.checkEditable(id, user);
+    }
     findOne(id, user) {
         return this.submissionsService.findOne(id, user);
+    }
+    update(id, dto, user) {
+        return this.submissionsService.update(id, dto, user);
     }
     approveLevel1(id, dto, user) {
         return this.submissionsService.approveLevel1(id, user, dto.comment);
@@ -81,6 +88,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "findAll", null);
 __decorate([
+    (0, common_1.Get)(':id/check-editable'),
+    (0, roles_decorator_1.Roles)(client_1.Role.COMMERCIAL),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], SubmissionsController.prototype, "checkEditable", null);
+__decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
@@ -88,6 +104,16 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "findOne", null);
+__decorate([
+    (0, common_1.Patch)(':id'),
+    (0, roles_decorator_1.Roles)(client_1.Role.COMMERCIAL),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, update_submission_dto_1.UpdateSubmissionDto, Object]),
+    __metadata("design:returntype", void 0)
+], SubmissionsController.prototype, "update", null);
 __decorate([
     (0, common_1.Patch)(':id/approve-l1'),
     (0, roles_decorator_1.Roles)(client_1.Role.SUPERVISEUR, client_1.Role.ADMIN),

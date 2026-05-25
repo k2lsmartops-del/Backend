@@ -331,6 +331,101 @@ export class SubmissionsService {
   }
 
   /**
+   * Modifie une soumission.
+   * RÈGLE : seules les soumissions DRAFT ou SUBMITTED peuvent être modifiées.
+   * Le commercial doit être le propriétaire.
+   * Retourne le statut actuel si la soumission a déjà été validée.
+   */
+  async update(
+    id: string,
+    dto: import('./dto/update-submission.dto').UpdateSubmissionDto,
+    user: Omit<User, 'password'>,
+  ) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id },
+      select: { id: true, status: true, commercialId: true },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Soumission non trouvée');
+    }
+
+    // Seul le propriétaire peut modifier
+    if (submission.commercialId !== user.id) {
+      throw new ForbiddenException('Vous ne pouvez modifier que vos propres soumissions');
+    }
+
+    // Vérification statut — refuser si déjà en cours de validation
+    if (
+      submission.status !== SubmissionStatus.DRAFT &&
+      submission.status !== SubmissionStatus.SUBMITTED
+    ) {
+      throw new BadRequestException(
+        `Modification impossible : la soumission est au statut "${submission.status}". Elle a déjà été prise en charge.`,
+      );
+    }
+
+    // Préparer les données de mise à jour (exclure photos)
+    const { photos, ...fields } = dto;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = {
+      ...fields,
+      gpsCapturedAt: fields.gpsCapturedAt
+        ? new Date(fields.gpsCapturedAt)
+        : undefined,
+    };
+
+    // Si de nouvelles photos sont fournies, les remplacer
+    if (photos && photos.length > 0) {
+      data.photos = {
+        deleteMany: {},
+        create: photos.map((p) => ({
+          url: p.url,
+          cloudinaryPublicId: p.cloudinaryPublicId,
+          category: p.category,
+          width: p.width,
+          height: p.height,
+          bytes: p.bytes,
+        })),
+      };
+    }
+
+    const updated = await this.prisma.submission.update({
+      where: { id },
+      data,
+      select: SUBMISSION_SELECT,
+    });
+
+    return updated;
+  }
+
+  /**
+   * Vérifie le statut actuel d'une soumission (pour le frontend avant édition).
+   * Retourne { editable: boolean, status: string }
+   */
+  async checkEditable(id: string, user: Omit<User, 'password'>) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id },
+      select: { id: true, status: true, commercialId: true },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Soumission non trouvée');
+    }
+
+    if (submission.commercialId !== user.id) {
+      throw new ForbiddenException('Accès interdit');
+    }
+
+    const editable =
+      submission.status === SubmissionStatus.DRAFT ||
+      submission.status === SubmissionStatus.SUBMITTED;
+
+    return { editable, status: submission.status };
+  }
+
+  /**
    * Validation NIVEAU 1 par le SUPERVISEUR.
    * Passe de SUBMITTED → SUPERVISOR_APPROVED.
    */

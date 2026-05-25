@@ -253,6 +253,63 @@ let SubmissionsService = class SubmissionsService {
         this.checkAccessToSubmission(submission, user);
         return submission;
     }
+    async update(id, dto, user) {
+        const submission = await this.prisma.submission.findUnique({
+            where: { id },
+            select: { id: true, status: true, commercialId: true },
+        });
+        if (!submission) {
+            throw new common_1.NotFoundException('Soumission non trouvée');
+        }
+        if (submission.commercialId !== user.id) {
+            throw new common_1.ForbiddenException('Vous ne pouvez modifier que vos propres soumissions');
+        }
+        if (submission.status !== client_1.SubmissionStatus.DRAFT &&
+            submission.status !== client_1.SubmissionStatus.SUBMITTED) {
+            throw new common_1.BadRequestException(`Modification impossible : la soumission est au statut "${submission.status}". Elle a déjà été prise en charge.`);
+        }
+        const { photos, ...fields } = dto;
+        const data = {
+            ...fields,
+            gpsCapturedAt: fields.gpsCapturedAt
+                ? new Date(fields.gpsCapturedAt)
+                : undefined,
+        };
+        if (photos && photos.length > 0) {
+            data.photos = {
+                deleteMany: {},
+                create: photos.map((p) => ({
+                    url: p.url,
+                    cloudinaryPublicId: p.cloudinaryPublicId,
+                    category: p.category,
+                    width: p.width,
+                    height: p.height,
+                    bytes: p.bytes,
+                })),
+            };
+        }
+        const updated = await this.prisma.submission.update({
+            where: { id },
+            data,
+            select: SUBMISSION_SELECT,
+        });
+        return updated;
+    }
+    async checkEditable(id, user) {
+        const submission = await this.prisma.submission.findUnique({
+            where: { id },
+            select: { id: true, status: true, commercialId: true },
+        });
+        if (!submission) {
+            throw new common_1.NotFoundException('Soumission non trouvée');
+        }
+        if (submission.commercialId !== user.id) {
+            throw new common_1.ForbiddenException('Accès interdit');
+        }
+        const editable = submission.status === client_1.SubmissionStatus.DRAFT ||
+            submission.status === client_1.SubmissionStatus.SUBMITTED;
+        return { editable, status: submission.status };
+    }
     async approveLevel1(id, user, comment) {
         const submission = await this.prisma.submission.findUnique({
             where: { id },
