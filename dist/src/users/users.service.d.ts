@@ -7,20 +7,16 @@ export declare class UsersService {
     constructor(prisma: PrismaService);
     create(dto: CreateUserDto): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-        } | null;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         avatarUrl: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthDate: Date | null;
@@ -29,31 +25,31 @@ export declare class UsersService {
         educationLevel: string | null;
         languages: string[];
         recruitedAt: Date | null;
-        zoneId: string | null;
-        supervisorId: string | null;
+        zone: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
             fullName: string;
         } | null;
+        zoneId: string | null;
+        supervisorId: string | null;
     }>;
     findAll(query: QueryUsersDto): Promise<{
         data: {
             id: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            zone: {
-                id: string;
-                name: string;
-            } | null;
             matricule: string;
+            fullName: string;
             email: string | null;
             phone: string;
-            fullName: string;
             phoneSecondary: string | null;
             role: import("@prisma/client").$Enums.Role;
             status: import("@prisma/client").$Enums.AgentStatus;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
             avatarUrl: string | null;
             gender: import("@prisma/client").$Enums.Gender | null;
             birthDate: Date | null;
@@ -62,13 +58,17 @@ export declare class UsersService {
             educationLevel: string | null;
             languages: string[];
             recruitedAt: Date | null;
-            zoneId: string | null;
-            supervisorId: string | null;
+            zone: {
+                id: string;
+                name: string;
+            } | null;
             supervisor: {
                 id: string;
                 matricule: string;
                 fullName: string;
             } | null;
+            zoneId: string | null;
+            supervisorId: string | null;
         }[];
         meta: {
             total: number;
@@ -79,20 +79,16 @@ export declare class UsersService {
     }>;
     findOne(id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-        } | null;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         avatarUrl: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthDate: Date | null;
@@ -101,8 +97,10 @@ export declare class UsersService {
         educationLevel: string | null;
         languages: string[];
         recruitedAt: Date | null;
-        zoneId: string | null;
-        supervisorId: string | null;
+        zone: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
@@ -110,27 +108,25 @@ export declare class UsersService {
         } | null;
         commercials: {
             id: string;
-            isActive: boolean;
             matricule: string;
             fullName: string;
+            isActive: boolean;
         }[];
+        zoneId: string | null;
+        supervisorId: string | null;
     }>;
     update(id: string, dto: UpdateUserDto): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-        } | null;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         avatarUrl: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthDate: Date | null;
@@ -139,30 +135,30 @@ export declare class UsersService {
         educationLevel: string | null;
         languages: string[];
         recruitedAt: Date | null;
-        zoneId: string | null;
-        supervisorId: string | null;
+        zone: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
             fullName: string;
         } | null;
+        zoneId: string | null;
+        supervisorId: string | null;
     }>;
     deactivate(id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-        } | null;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         avatarUrl: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthDate: Date | null;
@@ -171,30 +167,30 @@ export declare class UsersService {
         educationLevel: string | null;
         languages: string[];
         recruitedAt: Date | null;
-        zoneId: string | null;
-        supervisorId: string | null;
+        zone: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
             fullName: string;
         } | null;
+        zoneId: string | null;
+        supervisorId: string | null;
     }>;
     activate(id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-        } | null;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         avatarUrl: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthDate: Date | null;
@@ -203,30 +199,30 @@ export declare class UsersService {
         educationLevel: string | null;
         languages: string[];
         recruitedAt: Date | null;
-        zoneId: string | null;
-        supervisorId: string | null;
+        zone: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
             fullName: string;
         } | null;
+        zoneId: string | null;
+        supervisorId: string | null;
     }>;
     suspend(id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-        } | null;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
         avatarUrl: string | null;
         gender: import("@prisma/client").$Enums.Gender | null;
         birthDate: Date | null;
@@ -235,14 +231,28 @@ export declare class UsersService {
         educationLevel: string | null;
         languages: string[];
         recruitedAt: Date | null;
-        zoneId: string | null;
-        supervisorId: string | null;
+        zone: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
             fullName: string;
         } | null;
+        zoneId: string | null;
+        supervisorId: string | null;
     }>;
+    getTeam(supervisorId: string): Promise<{
+        id: string;
+        fullName: string;
+        matricule: string;
+        phone: string;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        submissionCount: number;
+        validatedCount: number;
+        lastActivity: Date;
+    }[]>;
     private checkDuplicates;
     private validateRoleAssignments;
     private generateMatricule;

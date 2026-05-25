@@ -265,6 +265,44 @@ let UsersService = class UsersService {
             select: USER_SELECT,
         });
     }
+    async getTeam(supervisorId) {
+        const members = await this.prisma.user.findMany({
+            where: {
+                supervisorId,
+                role: client_1.Role.COMMERCIAL,
+            },
+            select: {
+                ...USER_SELECT,
+                _count: {
+                    select: { submissions: true },
+                },
+                submissions: {
+                    select: { status: true, createdAt: true },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
+            },
+            orderBy: { fullName: 'asc' },
+        });
+        return Promise.all(members.map(async (m) => {
+            const validatedCount = await this.prisma.submission.count({
+                where: {
+                    commercialId: m.id,
+                    status: { in: ['SUPERVISOR_APPROVED', 'VALIDATED'] },
+                },
+            });
+            return {
+                id: m.id,
+                fullName: m.fullName,
+                matricule: m.matricule,
+                phone: m.phone,
+                status: m.status,
+                submissionCount: m._count.submissions,
+                validatedCount,
+                lastActivity: m.submissions[0]?.createdAt || null,
+            };
+        }));
+    }
     async checkDuplicates(phone, email, excludeId) {
         const conditions = [{ phone }];
         if (email)
