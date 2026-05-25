@@ -18,6 +18,7 @@ const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
 const submissions_module_1 = require("./submissions/submissions.module");
+const uploads_module_1 = require("./uploads/uploads.module");
 const prisma_module_1 = require("./prisma/prisma.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
@@ -38,6 +39,7 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule,
             users_module_1.UsersModule,
             submissions_module_1.SubmissionsModule,
+            uploads_module_1.UploadsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

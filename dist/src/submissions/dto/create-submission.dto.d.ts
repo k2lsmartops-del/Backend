@@ -1,4 +1,5 @@
 import { AppStatus, SubmissionType, SyncStatus } from '@prisma/client';
+import { PhotoDto } from './photo.dto';
 export declare class CreateSubmissionDto {
     type: SubmissionType;
     clientUuid: string;
@@ -11,6 +12,7 @@ export declare class CreateSubmissionDto {
     addressNote?: string;
     prospectFullName?: string;
     prospectPhone?: string;
+    prospectProfession?: string;
     prospectGender?: string;
     prospectAge?: number;
     appStatus?: AppStatus;
@@ -22,6 +24,8 @@ export declare class CreateSubmissionDto {
     merchantPhone?: string;
     merchantActivity?: string;
     merchantRccm?: string;
+    photos?: PhotoDto[];
+    requestedStatus?: 'DRAFT' | 'SUBMITTED';
     createdOffline?: boolean;
     syncStatus?: SyncStatus;
 }

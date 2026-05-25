@@ -93,6 +93,14 @@ enum DocumentType {
   AUTRE         // Autre document
 }
 
+/// Catégorie de photo preuve rattachée à une soumission.
+enum PhotoCategory {
+  APP_SCREEN  // Écran avec l'app installée (prospect)
+  ID_DOCUMENT // CNI du client/propriétaire
+  STOREFRONT  // Façade du commerce (marchand)
+  QR_CODE     // QR code du marchand installé
+}
+
 /// Type d'action dans l'historique de validation (traçabilité / audit).
 enum ValidationAction {
   SUBMITTED // Soumission initiale par le commercial
@@ -260,8 +268,9 @@ model Submission {
   addressNote   String?
 
   // ── Champs PROSPECT ──
-  prospectFullName String?
-  prospectPhone    String?
+  prospectFullName   String?
+  prospectPhone      String?
+  prospectProfession String?
   prospectGender   String?
   prospectAge      Int?
   appStatus        AppStatus?
@@ -327,7 +336,7 @@ model Photo {
 
   cloudinaryPublicId String
   url                String
-  category           String?
+  category           PhotoCategory?
   width              Int?
   height             Int?
   bytes              Int?

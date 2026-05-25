@@ -27,6 +27,7 @@ const SUBMISSION_SELECT = {
     gpsCapturedAt: true,
     prospectFullName: true,
     prospectPhone: true,
+    prospectProfession: true,
     prospectGender: true,
     prospectAge: true,
     appStatus: true,
@@ -59,12 +60,39 @@ let SubmissionsService = class SubmissionsService {
         this.prisma = prisma;
     }
     async create(dto, user) {
-        this.validateFieldsByType(dto);
-        return this.prisma.submission.create({
+        const existing = await this.prisma.submission.findUnique({
+            where: { clientUuid: dto.clientUuid },
+            select: SUBMISSION_SELECT,
+        });
+        if (existing)
+            return { ...existing, _idempotent: true };
+        const isDraft = dto.requestedStatus === 'DRAFT';
+        const targetStatus = isDraft
+            ? client_1.SubmissionStatus.DRAFT
+            : client_1.SubmissionStatus.SUBMITTED;
+        if (!isDraft) {
+            this.validateFieldsByType(dto);
+            this.validatePhotosByType(dto);
+        }
+        let _duplicateWarning;
+        if (dto.type === client_1.SubmissionType.PROSPECT &&
+            dto.prospectPhone) {
+            const duplicate = await this.prisma.submission.findFirst({
+                where: {
+                    prospectPhone: dto.prospectPhone,
+                    clientUuid: { not: dto.clientUuid },
+                },
+                select: { id: true, commercialId: true, createdAt: true },
+            });
+            if (duplicate) {
+                _duplicateWarning = `Prospect avec ce téléphone déjà enregistré (soumission ${duplicate.id})`;
+            }
+        }
+        const submission = await this.prisma.submission.create({
             data: {
                 type: dto.type,
                 clientUuid: dto.clientUuid,
-                status: client_1.SubmissionStatus.SUBMITTED,
+                status: targetStatus,
                 commercialId: user.id,
                 zoneId: user.zoneId || null,
                 commune: dto.commune,
@@ -76,6 +104,7 @@ let SubmissionsService = class SubmissionsService {
                 gpsCapturedAt: dto.gpsCapturedAt ? new Date(dto.gpsCapturedAt) : null,
                 prospectFullName: dto.prospectFullName || null,
                 prospectPhone: dto.prospectPhone || null,
+                prospectProfession: dto.prospectProfession || null,
                 prospectGender: dto.prospectGender || null,
                 prospectAge: dto.prospectAge || null,
                 appStatus: dto.appStatus || null,
@@ -87,26 +116,52 @@ let SubmissionsService = class SubmissionsService {
                 merchantPhone: dto.merchantPhone || null,
                 merchantActivity: dto.merchantActivity || null,
                 merchantRccm: dto.merchantRccm || null,
+                photos: dto.photos?.length
+                    ? {
+                        create: dto.photos.map((p) => ({
+                            cloudinaryPublicId: p.cloudinaryPublicId,
+                            url: p.url,
+                            category: p.category,
+                            width: p.width || null,
+                            height: p.height || null,
+                            bytes: p.bytes || null,
+                        })),
+                    }
+                    : undefined,
                 createdOffline: dto.createdOffline || false,
                 syncStatus: dto.syncStatus || 'SYNCED',
-                submittedAt: new Date(),
-                validationHistory: {
-                    create: {
-                        actorId: user.id,
-                        action: client_1.ValidationAction.SUBMITTED,
+                submittedAt: isDraft ? null : new Date(),
+                validationHistory: isDraft
+                    ? undefined
+                    : {
+                        create: {
+                            actorId: user.id,
+                            action: client_1.ValidationAction.SUBMITTED,
+                        },
                     },
-                },
             },
             select: SUBMISSION_SELECT,
         });
+        return { ...submission, _duplicateWarning };
     }
     async syncBatch(dtos, user) {
         const results = [];
         for (const dto of dtos) {
-            const result = await this.create(dto, user);
-            results.push(result);
+            try {
+                const data = await this.create(dto, user);
+                results.push({ clientUuid: dto.clientUuid, status: 'synced', data });
+            }
+            catch (err) {
+                const message = err instanceof Error ? err.message : 'Erreur inconnue';
+                results.push({ clientUuid: dto.clientUuid, status: 'failed', error: message });
+            }
         }
-        return { synced: results.length, submissions: results };
+        return {
+            total: results.length,
+            synced: results.filter((r) => r.status === 'synced').length,
+            failed: results.filter((r) => r.status === 'failed').length,
+            results,
+        };
     }
     async findAll(query, user) {
         const { page = 1, limit = 20, type, status, zoneId, commercialId, commune, search, } = query;
@@ -328,13 +383,42 @@ let SubmissionsService = class SubmissionsService {
             if (!dto.prospectPhone) {
                 throw new common_1.BadRequestException('Le téléphone du prospect est obligatoire');
             }
+            if (!dto.prospectProfession) {
+                throw new common_1.BadRequestException('La profession du prospect est obligatoire');
+            }
         }
         if (dto.type === client_1.SubmissionType.MARCHAND) {
             if (!dto.merchantName) {
                 throw new common_1.BadRequestException('Le nom du commerce est obligatoire');
             }
+            if (!dto.merchantOwner) {
+                throw new common_1.BadRequestException('Le nom du propriétaire est obligatoire');
+            }
             if (!dto.merchantPhone) {
                 throw new common_1.BadRequestException('Le téléphone du marchand est obligatoire');
+            }
+        }
+    }
+    validatePhotosByType(dto) {
+        const photos = dto.photos || [];
+        const categories = photos.map((p) => p.category);
+        if (dto.type === client_1.SubmissionType.PROSPECT) {
+            if (!categories.includes('APP_SCREEN')) {
+                throw new common_1.BadRequestException('Photo écran app (APP_SCREEN) obligatoire pour un prospect');
+            }
+            if (!categories.includes('ID_DOCUMENT')) {
+                throw new common_1.BadRequestException('Photo CNI (ID_DOCUMENT) obligatoire pour un prospect');
+            }
+        }
+        if (dto.type === client_1.SubmissionType.MARCHAND) {
+            if (!categories.includes('STOREFRONT')) {
+                throw new common_1.BadRequestException('Photo façade (STOREFRONT) obligatoire pour un marchand');
+            }
+            if (!categories.includes('QR_CODE')) {
+                throw new common_1.BadRequestException('Photo QR code (QR_CODE) obligatoire pour un marchand');
+            }
+            if (!categories.includes('ID_DOCUMENT')) {
+                throw new common_1.BadRequestException('Photo CNI (ID_DOCUMENT) obligatoire pour un marchand');
             }
         }
     }

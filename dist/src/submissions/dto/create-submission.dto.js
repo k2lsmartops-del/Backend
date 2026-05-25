@@ -11,7 +11,9 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CreateSubmissionDto = void 0;
 const client_1 = require("@prisma/client");
+const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
+const photo_dto_1 = require("./photo.dto");
 class CreateSubmissionDto {
     type;
     clientUuid;
@@ -24,6 +26,7 @@ class CreateSubmissionDto {
     addressNote;
     prospectFullName;
     prospectPhone;
+    prospectProfession;
     prospectGender;
     prospectAge;
     appStatus;
@@ -35,6 +38,8 @@ class CreateSubmissionDto {
     merchantPhone;
     merchantActivity;
     merchantRccm;
+    photos;
+    requestedStatus;
     createdOffline;
     syncStatus;
 }
@@ -97,6 +102,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], CreateSubmissionDto.prototype, "prospectProfession", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateSubmissionDto.prototype, "prospectGender", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
@@ -149,6 +159,18 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateSubmissionDto.prototype, "merchantRccm", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => photo_dto_1.PhotoDto),
+    __metadata("design:type", Array)
+], CreateSubmissionDto.prototype, "photos", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSubmissionDto.prototype, "requestedStatus", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),

@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SubmissionsModule } from './submissions/submissions.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -28,6 +29,8 @@ import { validate } from './config/env.validation';
     UsersModule,
     // Module des soumissions terrain (prospects + marchands)
     SubmissionsModule,
+    // Module uploads (signature Cloudinary)
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

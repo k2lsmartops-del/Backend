@@ -33,6 +33,7 @@ const SUBMISSION_SELECT = {
   // Champs prospect
   prospectFullName: true,
   prospectPhone: true,
+  prospectProfession: true,
   prospectGender: true,
   prospectAge: true,
   appStatus: true,
@@ -76,16 +77,53 @@ export class SubmissionsService {
   /**
    * Crée une soumission (brouillon ou directement soumise).
    * Appelé par le COMMERCIAL.
+   *
+   * Idempotence : si clientUuid existe déjà → retourne l'existante.
+   * Doublon prospect : si prospectPhone existe déjà → signale sans bloquer.
    */
   async create(dto: CreateSubmissionDto, user: Omit<User, 'password'>) {
-    // Valide les champs obligatoires selon le type
-    this.validateFieldsByType(dto);
+    // ── Idempotence : rejeu offline ──
+    const existing = await this.prisma.submission.findUnique({
+      where: { clientUuid: dto.clientUuid },
+      select: SUBMISSION_SELECT,
+    });
+    if (existing) return { ...existing, _idempotent: true };
 
-    return this.prisma.submission.create({
+    // ── Déterminer le statut final ──
+    const isDraft = dto.requestedStatus === 'DRAFT';
+    const targetStatus = isDraft
+      ? SubmissionStatus.DRAFT
+      : SubmissionStatus.SUBMITTED;
+
+    // ── Validation champs + photos si SUBMITTED ──
+    if (!isDraft) {
+      this.validateFieldsByType(dto);
+      this.validatePhotosByType(dto);
+    }
+
+    // ── Doublon prospect (signaler sans bloquer) ──
+    let _duplicateWarning: string | undefined;
+    if (
+      dto.type === SubmissionType.PROSPECT &&
+      dto.prospectPhone
+    ) {
+      const duplicate = await this.prisma.submission.findFirst({
+        where: {
+          prospectPhone: dto.prospectPhone,
+          clientUuid: { not: dto.clientUuid },
+        },
+        select: { id: true, commercialId: true, createdAt: true },
+      });
+      if (duplicate) {
+        _duplicateWarning = `Prospect avec ce téléphone déjà enregistré (soumission ${duplicate.id})`;
+      }
+    }
+
+    const submission = await this.prisma.submission.create({
       data: {
         type: dto.type,
         clientUuid: dto.clientUuid,
-        status: SubmissionStatus.SUBMITTED,
+        status: targetStatus,
         commercialId: user.id,
         zoneId: user.zoneId || null,
         commune: dto.commune,
@@ -98,6 +136,7 @@ export class SubmissionsService {
         // Prospect
         prospectFullName: dto.prospectFullName || null,
         prospectPhone: dto.prospectPhone || null,
+        prospectProfession: dto.prospectProfession || null,
         prospectGender: dto.prospectGender || null,
         prospectAge: dto.prospectAge || null,
         appStatus: dto.appStatus || null,
@@ -110,32 +149,62 @@ export class SubmissionsService {
         merchantPhone: dto.merchantPhone || null,
         merchantActivity: dto.merchantActivity || null,
         merchantRccm: dto.merchantRccm || null,
+        // Photos (métadonnées Cloudinary)
+        photos: dto.photos?.length
+          ? {
+              create: dto.photos.map((p) => ({
+                cloudinaryPublicId: p.cloudinaryPublicId,
+                url: p.url,
+                category: p.category,
+                width: p.width || null,
+                height: p.height || null,
+                bytes: p.bytes || null,
+              })),
+            }
+          : undefined,
         // Sync
         createdOffline: dto.createdOffline || false,
         syncStatus: dto.syncStatus || 'SYNCED',
-        submittedAt: new Date(),
+        submittedAt: isDraft ? null : new Date(),
         // Historique
-        validationHistory: {
-          create: {
-            actorId: user.id,
-            action: ValidationAction.SUBMITTED,
-          },
-        },
+        validationHistory: isDraft
+          ? undefined
+          : {
+              create: {
+                actorId: user.id,
+                action: ValidationAction.SUBMITTED,
+              },
+            },
       },
       select: SUBMISSION_SELECT,
     });
+
+    return { ...submission, _duplicateWarning };
   }
 
   /**
    * Synchronisation batch — crée plusieurs soumissions.
+   * Chaque soumission est traitée individuellement : un échec n'empêche pas les autres.
    */
   async syncBatch(dtos: CreateSubmissionDto[], user: Omit<User, 'password'>) {
-    const results: unknown[] = [];
+    const results: { clientUuid: string; status: string; data?: unknown; error?: string }[] = [];
+
     for (const dto of dtos) {
-      const result = await this.create(dto, user);
-      results.push(result);
+      try {
+        const data = await this.create(dto, user);
+        results.push({ clientUuid: dto.clientUuid, status: 'synced', data });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur inconnue';
+        results.push({ clientUuid: dto.clientUuid, status: 'failed', error: message });
+      }
     }
-    return { synced: results.length, submissions: results };
+
+    return {
+      total: results.length,
+      synced: results.filter((r) => r.status === 'synced').length,
+      failed: results.filter((r) => r.status === 'failed').length,
+      results,
+    };
   }
 
   /**
@@ -465,15 +534,66 @@ export class SubmissionsService {
           'Le téléphone du prospect est obligatoire',
         );
       }
+      if (!dto.prospectProfession) {
+        throw new BadRequestException(
+          'La profession du prospect est obligatoire',
+        );
+      }
     }
 
     if (dto.type === SubmissionType.MARCHAND) {
       if (!dto.merchantName) {
         throw new BadRequestException('Le nom du commerce est obligatoire');
       }
+      if (!dto.merchantOwner) {
+        throw new BadRequestException(
+          'Le nom du propriétaire est obligatoire',
+        );
+      }
       if (!dto.merchantPhone) {
         throw new BadRequestException(
           'Le téléphone du marchand est obligatoire',
+        );
+      }
+    }
+  }
+
+  /**
+   * Valide que les photos obligatoires sont présentes selon le type.
+   * Prospect : 2 photos (APP_SCREEN + ID_DOCUMENT)
+   * Marchand : 3 photos (STOREFRONT + QR_CODE + ID_DOCUMENT)
+   */
+  private validatePhotosByType(dto: CreateSubmissionDto) {
+    const photos = dto.photos || [];
+    const categories = photos.map((p) => p.category);
+
+    if (dto.type === SubmissionType.PROSPECT) {
+      if (!categories.includes('APP_SCREEN')) {
+        throw new BadRequestException(
+          'Photo écran app (APP_SCREEN) obligatoire pour un prospect',
+        );
+      }
+      if (!categories.includes('ID_DOCUMENT')) {
+        throw new BadRequestException(
+          'Photo CNI (ID_DOCUMENT) obligatoire pour un prospect',
+        );
+      }
+    }
+
+    if (dto.type === SubmissionType.MARCHAND) {
+      if (!categories.includes('STOREFRONT')) {
+        throw new BadRequestException(
+          'Photo façade (STOREFRONT) obligatoire pour un marchand',
+        );
+      }
+      if (!categories.includes('QR_CODE')) {
+        throw new BadRequestException(
+          'Photo QR code (QR_CODE) obligatoire pour un marchand',
+        );
+      }
+      if (!categories.includes('ID_DOCUMENT')) {
+        throw new BadRequestException(
+          'Photo CNI (ID_DOCUMENT) obligatoire pour un marchand',
         );
       }
     }
