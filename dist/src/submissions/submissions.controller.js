@@ -51,13 +51,13 @@ let SubmissionsController = class SubmissionsController {
         return this.submissionsService.remove(id, user);
     }
     approveLevel1(id, dto, user) {
-        return this.submissionsService.approveLevel1(id, user, dto.comment);
+        return this.submissionsService.approveLevel1(id, user, dto?.comment);
     }
     rejectLevel1(id, dto, user) {
         return this.submissionsService.rejectLevel1(id, user, dto.comment);
     }
     approveLevel2(id, dto, user) {
-        return this.submissionsService.approveLevel2(id, user, dto.comment);
+        return this.submissionsService.approveLevel2(id, user, dto?.comment);
     }
     rejectLevel2(id, dto, user) {
         return this.submissionsService.rejectLevel2(id, user, dto.comment);

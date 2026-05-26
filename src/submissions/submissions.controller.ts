@@ -136,7 +136,7 @@ export class SubmissionsController {
     @Body() dto: ValidateSubmissionDto,
     @CurrentUser() user: Omit<User, 'password'>,
   ) {
-    return this.submissionsService.approveLevel1(id, user, dto.comment);
+    return this.submissionsService.approveLevel1(id, user, dto?.comment);
   }
 
   /**
@@ -162,7 +162,7 @@ export class SubmissionsController {
     @Body() dto: ValidateSubmissionDto,
     @CurrentUser() user: Omit<User, 'password'>,
   ) {
-    return this.submissionsService.approveLevel2(id, user, dto.comment);
+    return this.submissionsService.approveLevel2(id, user, dto?.comment);
   }
 
   /**
