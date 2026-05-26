@@ -22,15 +22,7 @@ class UpdateUserDto {
     isActive;
     zoneId;
     supervisorId;
-    phoneSecondary;
-    avatarUrl;
-    gender;
-    birthDate;
-    cniNumber;
-    address;
-    educationLevel;
-    languages;
-    recruitedAt;
+    secteurId;
 }
 exports.UpdateUserDto = UpdateUserDto;
 __decorate([
@@ -83,48 +75,7 @@ __decorate([
 ], UpdateUserDto.prototype, "supervisorId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsUUID)('4', { message: 'ID de secteur invalide' }),
     __metadata("design:type", Object)
-], UpdateUserDto.prototype, "phoneSecondary", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "avatarUrl", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(client_1.Gender, { message: 'Genre invalide (HOMME ou FEMME)' }),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "gender", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)({}, { message: 'Format de date invalide (ISO 8601)' }),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "birthDate", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "cniNumber", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "address", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "educationLevel", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
-    __metadata("design:type", Array)
-], UpdateUserDto.prototype, "languages", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsDateString)({}, { message: 'Format de date invalide (ISO 8601)' }),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "recruitedAt", void 0);
+], UpdateUserDto.prototype, "secteurId", void 0);
 //# sourceMappingURL=update-user.dto.js.map

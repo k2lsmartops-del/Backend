@@ -29,19 +29,15 @@ export declare class UsersController {
         email: string | null;
         phone: string;
         fullName: string;
-        phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        avatarUrl: string | null;
-        gender: import("@prisma/client").$Enums.Gender | null;
-        birthDate: Date | null;
-        cniNumber: string | null;
-        address: string | null;
-        educationLevel: string | null;
-        languages: string[];
-        recruitedAt: Date | null;
         zoneId: string | null;
+        secteurId: string | null;
         supervisorId: string | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
@@ -62,19 +58,15 @@ export declare class UsersController {
             email: string | null;
             phone: string;
             fullName: string;
-            phoneSecondary: string | null;
             role: import("@prisma/client").$Enums.Role;
             status: import("@prisma/client").$Enums.AgentStatus;
-            avatarUrl: string | null;
-            gender: import("@prisma/client").$Enums.Gender | null;
-            birthDate: Date | null;
-            cniNumber: string | null;
-            address: string | null;
-            educationLevel: string | null;
-            languages: string[];
-            recruitedAt: Date | null;
             zoneId: string | null;
+            secteurId: string | null;
             supervisorId: string | null;
+            secteur: {
+                id: string;
+                name: string;
+            } | null;
             supervisor: {
                 id: string;
                 matricule: string;
@@ -101,19 +93,15 @@ export declare class UsersController {
         email: string | null;
         phone: string;
         fullName: string;
-        phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        avatarUrl: string | null;
-        gender: import("@prisma/client").$Enums.Gender | null;
-        birthDate: Date | null;
-        cniNumber: string | null;
-        address: string | null;
-        educationLevel: string | null;
-        languages: string[];
-        recruitedAt: Date | null;
         zoneId: string | null;
+        secteurId: string | null;
         supervisorId: string | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
@@ -139,19 +127,15 @@ export declare class UsersController {
         email: string | null;
         phone: string;
         fullName: string;
-        phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        avatarUrl: string | null;
-        gender: import("@prisma/client").$Enums.Gender | null;
-        birthDate: Date | null;
-        cniNumber: string | null;
-        address: string | null;
-        educationLevel: string | null;
-        languages: string[];
-        recruitedAt: Date | null;
         zoneId: string | null;
+        secteurId: string | null;
         supervisorId: string | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
@@ -171,19 +155,15 @@ export declare class UsersController {
         email: string | null;
         phone: string;
         fullName: string;
-        phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        avatarUrl: string | null;
-        gender: import("@prisma/client").$Enums.Gender | null;
-        birthDate: Date | null;
-        cniNumber: string | null;
-        address: string | null;
-        educationLevel: string | null;
-        languages: string[];
-        recruitedAt: Date | null;
         zoneId: string | null;
+        secteurId: string | null;
         supervisorId: string | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
@@ -203,19 +183,15 @@ export declare class UsersController {
         email: string | null;
         phone: string;
         fullName: string;
-        phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        avatarUrl: string | null;
-        gender: import("@prisma/client").$Enums.Gender | null;
-        birthDate: Date | null;
-        cniNumber: string | null;
-        address: string | null;
-        educationLevel: string | null;
-        languages: string[];
-        recruitedAt: Date | null;
         zoneId: string | null;
+        secteurId: string | null;
         supervisorId: string | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;
@@ -235,19 +211,15 @@ export declare class UsersController {
         email: string | null;
         phone: string;
         fullName: string;
-        phoneSecondary: string | null;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        avatarUrl: string | null;
-        gender: import("@prisma/client").$Enums.Gender | null;
-        birthDate: Date | null;
-        cniNumber: string | null;
-        address: string | null;
-        educationLevel: string | null;
-        languages: string[];
-        recruitedAt: Date | null;
         zoneId: string | null;
+        secteurId: string | null;
         supervisorId: string | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
         supervisor: {
             id: string;
             matricule: string;

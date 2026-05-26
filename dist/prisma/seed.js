@@ -113,7 +113,91 @@ async function main() {
             supervisorId: superviseur.id,
         },
     });
-    console.log('Seed termine - 4 utilisateurs crees');
+    const communesData = [
+        {
+            name: 'Yopougon',
+            quartiers: [
+                'Sicogi', 'Selmer', 'Wassakara', 'Niangon', 'Sideci',
+                'Toits Rouges', 'Banco', 'Azito', 'Port-Bouet 2', 'Koweït',
+                'Millionnaire', 'Andokoi', 'Maroc', 'Lievre Rouge',
+            ],
+        },
+        {
+            name: 'Cocody',
+            quartiers: [
+                'Angré', 'Riviera 2', 'Riviera 3', 'Riviera Faya', 'Bonoumin',
+                'Danga', 'II Plateaux', 'Vallon', 'Attoban', 'Palmeraie',
+                'Blockauss', 'Ambassade', 'Saint-Jean', 'Feh Kessé',
+            ],
+        },
+        {
+            name: 'Marcory',
+            quartiers: [
+                'Zone 4', 'Biétry', 'Anoumabo', 'Résidentiel', 'Zone 3',
+            ],
+        },
+        {
+            name: 'Treichville',
+            quartiers: [
+                'Avenue 12', 'Avenue 17', 'Gare de Bassam', 'Habitat', 'Nanan Yamousso',
+            ],
+        },
+        {
+            name: 'Plateau',
+            quartiers: [
+                'Commerce', 'Cathédrale', 'Indénié', 'Adjamé-Gare',
+            ],
+        },
+        {
+            name: 'Abobo',
+            quartiers: [
+                'Abobo-Gare', 'PK18', 'Avocatier', 'Sagbé', 'Anador',
+                'Kennedy', 'Baoulé', 'Banco Nord', 'Anonkoua-Kouté',
+            ],
+        },
+        {
+            name: 'Adjamé',
+            quartiers: [
+                'Liberté', 'Bracodi', 'Williamsville', '220 logements', 'Forum',
+            ],
+        },
+        {
+            name: 'Port-Bouët',
+            quartiers: [
+                'Vridi', 'Gonzagueville', 'Jean Folly', 'Aéroport', 'Derrière-Wharf',
+            ],
+        },
+        {
+            name: 'Koumassi',
+            quartiers: [
+                'Remblais', 'Grand campement', 'Sopim', 'Zone industrielle', 'Sicogi',
+            ],
+        },
+        {
+            name: 'Attécoubé',
+            quartiers: [
+                'Agban', 'Locodjro', 'Santé', 'Abobo-Doumé', 'Boribana',
+            ],
+        },
+    ];
+    for (const c of communesData) {
+        const commune = await prisma.commune.upsert({
+            where: { name: c.name },
+            update: {},
+            create: { name: c.name },
+        });
+        for (const q of c.quartiers) {
+            await prisma.quartier.upsert({
+                where: { name_communeId: { name: q, communeId: commune.id } },
+                update: {},
+                create: { name: q, communeId: commune.id },
+            });
+        }
+    }
+    console.log(`Seed terminé :`);
+    console.log(`  - ${communesData.length} communes`);
+    console.log(`  - ${communesData.reduce((s, c) => s + c.quartiers.length, 0)} quartiers`);
+    console.log('  - 4 utilisateurs');
     console.log('');
     console.log('IDENTIFIANTS DE CONNEXION (mot de passe: password123)');
     console.log('  Admin        -> 0700000001');

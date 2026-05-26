@@ -1,7 +1,5 @@
-import { AgentStatus, Gender, Role } from '@prisma/client';
+import { AgentStatus, Role } from '@prisma/client';
 import {
-  IsArray,
-  IsDateString,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -55,42 +53,7 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'ID de superviseur invalide' })
   supervisorId?: string;
 
-  // ── Informations personnelles (document K2L) ──
-
   @IsOptional()
-  @IsString()
-  phoneSecondary?: string;
-
-  @IsOptional()
-  @IsString()
-  avatarUrl?: string;
-
-  @IsOptional()
-  @IsEnum(Gender, { message: 'Genre invalide (HOMME ou FEMME)' })
-  gender?: Gender;
-
-  @IsOptional()
-  @IsDateString({}, { message: 'Format de date invalide (ISO 8601)' })
-  birthDate?: string;
-
-  @IsOptional()
-  @IsString()
-  cniNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @IsOptional()
-  @IsString()
-  educationLevel?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  languages?: string[];
-
-  @IsOptional()
-  @IsDateString({}, { message: 'Format de date invalide (ISO 8601)' })
-  recruitedAt?: string;
+  @IsUUID('4', { message: 'ID de secteur invalide' })
+  secteurId?: string;
 }

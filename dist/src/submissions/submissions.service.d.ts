@@ -12,14 +12,14 @@ export declare class SubmissionsService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -59,8 +59,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     } | {
@@ -70,14 +70,14 @@ export declare class SubmissionsService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -117,8 +117,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -140,14 +140,14 @@ export declare class SubmissionsService {
             updatedAt: Date;
             status: import("@prisma/client").$Enums.SubmissionStatus;
             zoneId: string | null;
+            commune: string;
+            quartier: string | null;
             type: import("@prisma/client").$Enums.SubmissionType;
             commercialId: string;
             latitude: number | null;
             longitude: number | null;
             gpsAccuracy: number | null;
             gpsCapturedAt: Date | null;
-            commune: string;
-            quartier: string | null;
             addressNote: string | null;
             prospectFullName: string | null;
             prospectPhone: string | null;
@@ -187,8 +187,8 @@ export declare class SubmissionsService {
                 fullName: string;
             } | null;
             photos: {
-                id: string;
                 url: string;
+                id: string;
                 category: import("@prisma/client").$Enums.PhotoCategory | null;
             }[];
         }[];
@@ -216,14 +216,14 @@ export declare class SubmissionsService {
                 fullName: string;
             };
         }[];
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -263,8 +263,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -274,14 +274,14 @@ export declare class SubmissionsService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -321,8 +321,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -339,14 +339,14 @@ export declare class SubmissionsService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -386,8 +386,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -397,14 +397,14 @@ export declare class SubmissionsService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -444,8 +444,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -455,14 +455,14 @@ export declare class SubmissionsService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -502,8 +502,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -513,14 +513,14 @@ export declare class SubmissionsService {
         updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
         commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -560,8 +560,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;

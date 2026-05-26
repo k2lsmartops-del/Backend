@@ -1,4 +1,4 @@
-import { AgentStatus, Gender, Role } from '@prisma/client';
+import { AgentStatus, Role } from '@prisma/client';
 export declare class UpdateUserDto {
     fullName?: string;
     email?: string;
@@ -9,13 +9,5 @@ export declare class UpdateUserDto {
     isActive?: boolean;
     zoneId?: string | null;
     supervisorId?: string | null;
-    phoneSecondary?: string | null;
-    avatarUrl?: string | null;
-    gender?: Gender | null;
-    birthDate?: string | null;
-    cniNumber?: string | null;
-    address?: string | null;
-    educationLevel?: string | null;
-    languages?: string[];
-    recruitedAt?: string | null;
+    secteurId?: string | null;
 }

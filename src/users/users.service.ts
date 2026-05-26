@@ -20,25 +20,16 @@ const USER_SELECT = {
   fullName: true,
   email: true,
   phone: true,
-  phoneSecondary: true,
   role: true,
   status: true,
   isActive: true,
-  // Informations personnelles
-  avatarUrl: true,
-  gender: true,
-  birthDate: true,
-  cniNumber: true,
-  address: true,
-  educationLevel: true,
-  languages: true,
-  // Informations professionnelles
-  recruitedAt: true,
   zoneId: true,
+  secteurId: true,
   supervisorId: true,
   createdAt: true,
   updatedAt: true,
   zone: { select: { id: true, name: true } },
+  secteur: { select: { id: true, name: true } },
   supervisor: { select: { id: true, fullName: true, matricule: true } },
 };
 
@@ -76,22 +67,13 @@ export class UsersService {
         fullName: dto.fullName,
         email: dto.email || null,
         phone: dto.phone,
-        phoneSecondary: dto.phoneSecondary || null,
         password: hashedPassword,
         role: dto.role,
         status,
         isActive,
         zoneId: dto.zoneId || null,
+        secteurId: dto.secteurId || null,
         supervisorId: dto.supervisorId || null,
-        // Informations personnelles
-        avatarUrl: dto.avatarUrl || null,
-        gender: dto.gender || null,
-        birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
-        cniNumber: dto.cniNumber || null,
-        address: dto.address || null,
-        educationLevel: dto.educationLevel || null,
-        languages: dto.languages || [],
-        recruitedAt: dto.recruitedAt ? new Date(dto.recruitedAt) : null,
       },
       select: USER_SELECT,
     });
@@ -214,10 +196,10 @@ export class UsersService {
     if (dto.fullName !== undefined) data.fullName = dto.fullName;
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.phone !== undefined) data.phone = dto.phone;
-    if (dto.phoneSecondary !== undefined) data.phoneSecondary = dto.phoneSecondary;
     if (dto.role !== undefined) data.role = dto.role;
     if (dto.zoneId !== undefined) data.zoneId = dto.zoneId;
     if (dto.supervisorId !== undefined) data.supervisorId = dto.supervisorId;
+    if (dto.secteurId !== undefined) data.secteurId = dto.secteurId;
 
     // Gestion du statut agent (4 états)
     if (dto.status !== undefined) {
@@ -226,20 +208,6 @@ export class UsersService {
     } else if (dto.isActive !== undefined) {
       data.isActive = dto.isActive;
       data.status = dto.isActive ? AgentStatus.ACTIF : AgentStatus.DESACTIVE;
-    }
-
-    // Informations personnelles
-    if (dto.avatarUrl !== undefined) data.avatarUrl = dto.avatarUrl;
-    if (dto.gender !== undefined) data.gender = dto.gender;
-    if (dto.birthDate !== undefined) {
-      data.birthDate = dto.birthDate ? new Date(dto.birthDate) : null;
-    }
-    if (dto.cniNumber !== undefined) data.cniNumber = dto.cniNumber;
-    if (dto.address !== undefined) data.address = dto.address;
-    if (dto.educationLevel !== undefined) data.educationLevel = dto.educationLevel;
-    if (dto.languages !== undefined) data.languages = dto.languages;
-    if (dto.recruitedAt !== undefined) {
-      data.recruitedAt = dto.recruitedAt ? new Date(dto.recruitedAt) : null;
     }
 
     // Hash le nouveau mot de passe si fourni

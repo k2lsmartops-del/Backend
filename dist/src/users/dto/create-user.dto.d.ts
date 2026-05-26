@@ -1,4 +1,4 @@
-import { AgentStatus, Gender, Role } from '@prisma/client';
+import { AgentStatus, Role } from '@prisma/client';
 export declare class CreateUserDto {
     fullName: string;
     email?: string;
@@ -8,13 +8,5 @@ export declare class CreateUserDto {
     status?: AgentStatus;
     zoneId?: string;
     supervisorId?: string;
-    phoneSecondary?: string;
-    avatarUrl?: string;
-    gender?: Gender;
-    birthDate?: string;
-    cniNumber?: string;
-    address?: string;
-    educationLevel?: string;
-    languages?: string[];
-    recruitedAt?: string;
+    secteurId?: string;
 }

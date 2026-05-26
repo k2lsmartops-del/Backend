@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-//  AIP TERRAIN — Schéma Prisma (avec Zones et Coordinateurs)
+//  AIP TERRAIN — Schéma Prisma
 //
 //  Workflow de validation à 2 niveaux (systématique) :
 //    Commercial → Superviseur (niv.1) → Coordinateur (niv.2) → Validé
@@ -7,11 +7,11 @@
 //  4 rôles : ADMIN, COORDINATEUR, SUPERVISEUR, COMMERCIAL
 //
 //  Organisation géographique :
-//    - Une ZONE est définie librement par l'admin (indépendante des communes)
-//    - Une zone a UN coordinateur (relation 1-à-1)
-//    - Les superviseurs sont rattachés à une zone
-//    - Les commerciaux sont rattachés à un superviseur
-//    => La zone est le pivot : elle relie coordinateur, superviseurs et commerciaux.
+//    COUCHE RÉFÉRENCE (figée, seed) : Commune → Quartier
+//    COUCHE OPÉRATIONNELLE (admin) : Zone → Secteur
+//
+//    Zone (1 coordinateur) → Secteur (1 superviseur) → Commerciaux
+//    Zone regroupe des Communes, Secteur regroupe des Quartiers
 // ════════════════════════════════════════════════════════════════════
 
 generator client {
@@ -28,11 +28,11 @@ datasource db {
 
 /// Les 4 rôles de la plateforme.
 enum Role {
-  ADMIN         // Pilotage global AIP
-  COORDINATEUR  // Validation niveau 2, pilotage de zone
-  SUPERVISEUR   // Validation niveau 1
-  COMMERCIAL    // Collecte terrain
-  CLIENT        // Lecture seule : KPIs + enregistrements validés (ex: MANSA BANK)
+  ADMIN // Pilotage global AIP
+  COORDINATEUR // Validation niveau 2, pilotage de zone
+  SUPERVISEUR // Validation niveau 1
+  COMMERCIAL // Collecte terrain
+  CLIENT // Lecture seule : KPIs + enregistrements validés (ex: MANSA BANK)
 }
 
 /// Type de soumission terrain.
@@ -55,7 +55,7 @@ enum SubmissionStatus {
 
 /// Statut d'installation de l'application bancaire (donnée digitale du prospect).
 enum AppStatus {
-  INSTALLED           // Application installée
+  INSTALLED // Application installée
   INSTALLED_ACTIVATED // Application installée et activée
 }
 
@@ -69,35 +69,18 @@ enum SyncStatus {
 /// Statut de l'agent (cycle de vie du compte).
 /// Conforme au document K2L Profils — Fiche (IV).
 enum AgentStatus {
-  ACTIF     // Opérationnel, autorisé à utiliser l'application
-  SUSPENDU  // Temporairement bloqué (disciplinaire, absence, fraude suspectée)
+  ACTIF // Opérationnel, autorisé à utiliser l'application
+  SUSPENDU // Temporairement bloqué (disciplinaire, absence, fraude suspectée)
   EN_ATTENTE // Pas encore validé (dossier en cours, formation non terminée)
-  DESACTIVE  // Compte fermé définitivement (fin de mission, démission)
-}
-
-/// Genre de l'utilisateur.
-enum Gender {
-  HOMME
-  FEMME
-}
-
-/// Type de document justificatif rattaché au profil utilisateur.
-enum DocumentType {
-  CNI           // Carte nationale d'identité
-  PHOTO_IDENTITE // Photo d'identité
-  CONTRAT       // Contrat signé
-  BADGE         // Badge terrain
-  RIB           // Relevé d'identité bancaire
-  MOBILE_MONEY  // Justificatif Mobile Money
-  AUTRE         // Autre document
+  DESACTIVE // Compte fermé définitivement (fin de mission, démission)
 }
 
 /// Catégorie de photo preuve rattachée à une soumission.
 enum PhotoCategory {
-  APP_SCREEN  // Écran avec l'app installée (prospect)
+  APP_SCREEN // Écran avec l'app installée (prospect)
   ID_DOCUMENT // CNI du client/propriétaire
-  STOREFRONT  // Façade du commerce (marchand)
-  QR_CODE     // QR code du marchand installé
+  STOREFRONT // Façade du commerce (marchand)
+  QR_CODE // QR code du marchand installé
 }
 
 /// Type d'action dans l'historique de validation (traçabilité / audit).
@@ -111,29 +94,113 @@ enum ValidationAction {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  ZONE (pivot géographique/organisationnel)
+//  COUCHE RÉFÉRENCE — Commune & Quartier (figées, préchargées via seed)
+// ════════════════════════════════════════════════════════════════════
+
+/// Commune d'Abidjan (ex: Yopougon, Cocody, Marcory…).
+/// Peut être affectée à UNE zone (zoneId nullable = non affectée).
+model Commune {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  // ── Affectation à une zone (nullable = non encore affectée) ──
+  zoneId String?
+  zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  // ── Relations ──
+  quartiers   Quartier[]
+  submissions Submission[] @relation("SubmissionCommune")
+
+  @@index([zoneId])
+  @@map("communes")
+}
+
+/// Quartier rattaché à UNE commune (référence figée).
+/// Peut être affecté à UN secteur (secteurId nullable = disponible).
+model Quartier {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  // ── Commune parente (fixe) ──
+  communeId String
+  commune   Commune @relation(fields: [communeId], references: [id], onDelete: Restrict)
+
+  // ── Affectation à un secteur (nullable = disponible) ──
+  secteurId String?
+  secteur   Secteur? @relation(fields: [secteurId], references: [id], onDelete: SetNull)
+
+  // ── Relations ──
+  submissions Submission[] @relation("SubmissionQuartier")
+
+  @@unique([name, communeId])
+  @@index([communeId])
+  @@index([secteurId])
+  @@map("quartiers")
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  COUCHE OPÉRATIONNELLE — Zone & Secteur
 // ════════════════════════════════════════════════════════════════════
 
 /// Zone définie librement par l'admin (ex: "Zone Sud", "Zone Abidjan-Est").
-/// Indépendante des communes. Pilotée par UN coordinateur.
+/// Regroupe des communes. Pilotée par UN coordinateur.
 model Zone {
   id          String   @id @default(uuid())
-  name        String   @unique // ex: "Zone Sud"
+  name        String   @unique
   description String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // ── Coordinateur de la zone (relation 1-à-1) ──
-  // Un coordinateur = une seule zone, une zone = un seul coordinateur.
   coordinatorId String? @unique
   coordinator   User?   @relation("ZoneCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
 
   // ── Membres rattachés à la zone ──
-  members User[] @relation("ZoneMembers") // superviseurs et commerciaux de la zone
+  members User[] @relation("ZoneMembers")
+
+  // ── Communes affectées à cette zone ──
+  communes Commune[]
+
+  // ── Secteurs de cette zone ──
+  secteurs Secteur[]
 
   @@index([isActive])
   @@map("zones")
+}
+
+/// Secteur opérationnel : regroupe des quartiers, appartient à UNE zone.
+/// Dirigé par UN superviseur (relation 1-à-1).
+model Secteur {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── Zone parente ──
+  zoneId String
+  zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  // ── Superviseur du secteur (relation 1-à-1) ──
+  supervisorId String? @unique
+  supervisor   User?   @relation("SecteurSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+
+  // ── Quartiers affectés à ce secteur ──
+  quartiers Quartier[]
+
+  // ── Commerciaux rattachés à ce secteur ──
+  members User[] @relation("SecteurMembers")
+
+  // ── Soumissions dénormalisées ──
+  submissions Submission[] @relation("SubmissionSecteur")
+
+  @@unique([name, zoneId])
+  @@index([zoneId])
+  @@index([isActive])
+  @@map("secteurs")
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -143,34 +210,21 @@ model Zone {
 /// Compte utilisateur — couvre les 4 rôles.
 ///
 /// Rattachements :
-///   - Un COORDINATEUR pilote UNE zone (via la relation ZoneCoordinator côté Zone)
-///   - Un SUPERVISEUR appartient à une zone (zoneId) — son coordinateur = celui de la zone
-///   - Un COMMERCIAL appartient à un superviseur (supervisorId) et à une zone (zoneId)
+///   - Un COORDINATEUR pilote UNE zone (via ZoneCoordinator)
+///   - Un SUPERVISEUR pilote UN secteur (via SecteurSupervisor) et appartient à une zone
+///   - Un COMMERCIAL appartient à un secteur (secteurId) et à un superviseur (supervisorId)
 model User {
-  id        String   @id @default(uuid())
-  matricule String   @unique // ex: AGT-0042, SUP-003, COORD-01
+  id        String      @id @default(uuid())
+  matricule String      @unique
   fullName  String
-  email     String?  @unique
-  phone     String   @unique
-  phoneSecondary String? // Contact secondaire
+  email     String?     @unique
+  phone     String      @unique
   password  String // hash bcrypt
   role      Role
-  status    AgentStatus @default(ACTIF) // Statut du compte (Actif, Suspendu, En attente, Désactivé)
-  isActive  Boolean  @default(true) // Raccourci : true si status=ACTIF
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // ── Informations personnelles (document K2L § Profil Commercial) ──
-  avatarUrl    String?   // Photo de profil (URL Cloudinary)
-  gender       Gender?   // Sexe
-  birthDate    DateTime? // Date de naissance
-  cniNumber    String?   // Numéro de carte nationale d'identité
-  address      String?   // Adresse / commune de résidence
-  educationLevel String? // Niveau d'étude
-  languages    String[]  // Langues parlées (tableau)
-
-  // ── Informations professionnelles ──
-  recruitedAt  DateTime? // Date de recrutement
+  status    AgentStatus @default(ACTIF)
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   // ── Rattachement à une zone (superviseurs et commerciaux) ──
   zoneId String?
@@ -179,21 +233,28 @@ model User {
   // ── Zone pilotée (uniquement pour le coordinateur) ──
   coordinatedZone Zone? @relation("ZoneCoordinator")
 
+  // ── Secteur piloté (uniquement pour le superviseur, relation 1-à-1) ──
+  supervisedSecteur Secteur? @relation("SecteurSupervisor")
+
+  // ── Rattachement à un secteur (pour les commerciaux) ──
+  secteurId String?
+  secteur   Secteur? @relation("SecteurMembers", fields: [secteurId], references: [id], onDelete: SetNull)
+
   // ── Hiérarchie commercial ↔ superviseur ──
   supervisorId String?
   supervisor   User?   @relation("SupervisorToCommercials", fields: [supervisorId], references: [id], onDelete: SetNull)
   commercials  User[]  @relation("SupervisorToCommercials")
 
   // ── Relations métier ──
-  submissions       Submission[] @relation("CommercialSubmissions") // soumissions créées (commercial)
-  level1Validations Submission[] @relation("Level1Validator") // validées niv.1 (superviseur)
-  level2Validations Submission[] @relation("Level2Validator") // validées niv.2 (coordinateur)
+  submissions       Submission[]        @relation("CommercialSubmissions")
+  level1Validations Submission[]        @relation("Level1Validator")
+  level2Validations Submission[]        @relation("Level2Validator")
   validationHistory ValidationHistory[]
   refreshTokens     RefreshToken[]
-  documents         UserDocument[] // Pièces justificatives du profil
 
   @@index([role])
   @@index([zoneId])
+  @@index([secteurId])
   @@index([supervisorId])
   @@index([isActive])
   @@index([status])
@@ -216,30 +277,6 @@ model RefreshToken {
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  DOCUMENTS UTILISATEUR (pièces justificatives du profil)
-// ════════════════════════════════════════════════════════════════════
-
-/// Documents rattachés au profil d'un utilisateur (CNI, contrat, badge, RIB, etc.).
-model UserDocument {
-  id     String       @id @default(uuid())
-  userId String
-  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  type               DocumentType
-  label              String?  // Libellé libre (ex: "CNI recto")
-  cloudinaryPublicId String?
-  url                String   // URL du fichier
-  mimeType           String?  // ex: image/jpeg, application/pdf
-  bytes              Int?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  @@index([userId])
-  @@index([type])
-  @@map("user_documents")
-}
-
-// ════════════════════════════════════════════════════════════════════
 //  SOUMISSIONS (prospects + marchands)
 // ════════════════════════════════════════════════════════════════════
 
@@ -253,9 +290,16 @@ model Submission {
   commercialId String
   commercial   User   @relation("CommercialSubmissions", fields: [commercialId], references: [id], onDelete: Restrict)
 
-  // ── Zone de la soumission (dénormalisée pour faciliter le filtrage coordinateur) ──
-  // Recopiée depuis la zone du commercial au moment de la soumission.
-  zoneId String?
+  // ── Dénormalisation géographique (recopiés à la création pour KPIs) ──
+  zoneId     String?
+  secteurId  String?
+  communeId  String?
+  quartierId String?
+
+  // ── Relations géographiques (FK) ──
+  secteurRef  Secteur?  @relation("SubmissionSecteur", fields: [secteurId], references: [id], onDelete: SetNull)
+  communeRef  Commune?  @relation("SubmissionCommune", fields: [communeId], references: [id], onDelete: SetNull)
+  quartierRef Quartier? @relation("SubmissionQuartier", fields: [quartierId], references: [id], onDelete: SetNull)
 
   // ── Géolocalisation ──
   latitude      Float?
@@ -270,12 +314,12 @@ model Submission {
   prospectFullName   String?
   prospectPhone      String?
   prospectProfession String?
-  prospectGender   String?
-  prospectAge      Int?
-  appStatus        AppStatus?
-  phoneType        String?
-  bankAccount      String?
-  observations     String?
+  prospectGender     String?
+  prospectAge        Int?
+  appStatus          AppStatus?
+  phoneType          String?
+  bankAccount        String?
+  observations       String?
 
   // ── Champs MARCHAND ──
   merchantName     String?
@@ -313,6 +357,9 @@ model Submission {
   // ── Index ──
   @@index([commercialId])
   @@index([zoneId])
+  @@index([secteurId])
+  @@index([communeId])
+  @@index([quartierId])
   @@index([status])
   @@index([type])
   @@index([commune])
@@ -339,7 +386,7 @@ model Photo {
   width              Int?
   height             Int?
   bytes              Int?
-  createdAt          DateTime @default(now())
+  createdAt          DateTime       @default(now())
 
   @@index([submissionId])
   @@map("photos")
@@ -350,14 +397,14 @@ model Photo {
 // ════════════════════════════════════════════════════════════════════
 
 model ValidationHistory {
-  id           String     @id @default(uuid())
+  id           String           @id @default(uuid())
   submissionId String
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submission   Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   actorId      String
-  actor        User       @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  actor        User             @relation(fields: [actorId], references: [id], onDelete: Restrict)
   action       ValidationAction
   comment      String?
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime         @default(now())
 
   @@index([submissionId])
   @@index([actorId])

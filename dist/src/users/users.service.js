@@ -53,23 +53,16 @@ const USER_SELECT = {
     fullName: true,
     email: true,
     phone: true,
-    phoneSecondary: true,
     role: true,
     status: true,
     isActive: true,
-    avatarUrl: true,
-    gender: true,
-    birthDate: true,
-    cniNumber: true,
-    address: true,
-    educationLevel: true,
-    languages: true,
-    recruitedAt: true,
     zoneId: true,
+    secteurId: true,
     supervisorId: true,
     createdAt: true,
     updatedAt: true,
     zone: { select: { id: true, name: true } },
+    secteur: { select: { id: true, name: true } },
     supervisor: { select: { id: true, fullName: true, matricule: true } },
 };
 let UsersService = class UsersService {
@@ -90,21 +83,13 @@ let UsersService = class UsersService {
                 fullName: dto.fullName,
                 email: dto.email || null,
                 phone: dto.phone,
-                phoneSecondary: dto.phoneSecondary || null,
                 password: hashedPassword,
                 role: dto.role,
                 status,
                 isActive,
                 zoneId: dto.zoneId || null,
+                secteurId: dto.secteurId || null,
                 supervisorId: dto.supervisorId || null,
-                avatarUrl: dto.avatarUrl || null,
-                gender: dto.gender || null,
-                birthDate: dto.birthDate ? new Date(dto.birthDate) : null,
-                cniNumber: dto.cniNumber || null,
-                address: dto.address || null,
-                educationLevel: dto.educationLevel || null,
-                languages: dto.languages || [],
-                recruitedAt: dto.recruitedAt ? new Date(dto.recruitedAt) : null,
             },
             select: USER_SELECT,
         });
@@ -189,14 +174,14 @@ let UsersService = class UsersService {
             data.email = dto.email;
         if (dto.phone !== undefined)
             data.phone = dto.phone;
-        if (dto.phoneSecondary !== undefined)
-            data.phoneSecondary = dto.phoneSecondary;
         if (dto.role !== undefined)
             data.role = dto.role;
         if (dto.zoneId !== undefined)
             data.zoneId = dto.zoneId;
         if (dto.supervisorId !== undefined)
             data.supervisorId = dto.supervisorId;
+        if (dto.secteurId !== undefined)
+            data.secteurId = dto.secteurId;
         if (dto.status !== undefined) {
             data.status = dto.status;
             data.isActive = dto.status === client_1.AgentStatus.ACTIF;
@@ -204,24 +189,6 @@ let UsersService = class UsersService {
         else if (dto.isActive !== undefined) {
             data.isActive = dto.isActive;
             data.status = dto.isActive ? client_1.AgentStatus.ACTIF : client_1.AgentStatus.DESACTIVE;
-        }
-        if (dto.avatarUrl !== undefined)
-            data.avatarUrl = dto.avatarUrl;
-        if (dto.gender !== undefined)
-            data.gender = dto.gender;
-        if (dto.birthDate !== undefined) {
-            data.birthDate = dto.birthDate ? new Date(dto.birthDate) : null;
-        }
-        if (dto.cniNumber !== undefined)
-            data.cniNumber = dto.cniNumber;
-        if (dto.address !== undefined)
-            data.address = dto.address;
-        if (dto.educationLevel !== undefined)
-            data.educationLevel = dto.educationLevel;
-        if (dto.languages !== undefined)
-            data.languages = dto.languages;
-        if (dto.recruitedAt !== undefined) {
-            data.recruitedAt = dto.recruitedAt ? new Date(dto.recruitedAt) : null;
         }
         if (dto.password) {
             data.password = await bcrypt.hash(dto.password, 12);
