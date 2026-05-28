@@ -135,4 +135,17 @@ export class UsersController {
   ) {
     return this.usersService.resetPassword(id, currentUser);
   }
+
+  /**
+   * PATCH /users/:id/remove-from-team — Retirer un commercial de l'équipe.
+   * Met supervisorId et secteurId à null.
+   */
+  @Patch(':id/remove-from-team')
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  removeFromTeam(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.removeFromTeam(id, currentUser);
+  }
 }

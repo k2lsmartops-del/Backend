@@ -464,6 +464,35 @@ export class UsersService {
   }
 
   /**
+   * Retire un commercial de l'équipe du superviseur.
+   * Met supervisorId et secteurId à null.
+   */
+  async removeFromTeam(id: string, currentUser?: { id?: string; role: Role }) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // Vérifier que c'est bien un commercial
+    if (user.role !== Role.COMMERCIAL) {
+      throw new BadRequestException('Seuls les commerciaux peuvent être retirés d\'une équipe');
+    }
+
+    // SUPERVISEUR ne peut retirer que ses propres commerciaux
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (user.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Accès non autorisé à cet utilisateur');
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { supervisorId: null, secteurId: null, zoneId: null },
+      select: USER_SELECT,
+    });
+  }
+
+  /**
    * Récupère l'équipe d'un superviseur (commerciaux rattachés).
    * Inclut des statistiques de soumissions pour chaque membre.
    */
