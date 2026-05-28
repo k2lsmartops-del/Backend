@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -53,11 +54,21 @@ export class UsersService {
    * - COMMERCIAL assigné à un superviseur → hérite secteurId et zoneId du superviseur
    * - SUPERVISEUR assigné à un secteur → hérite zoneId du secteur
    * - Si créé par un COORDINATEUR → hérite automatiquement de sa zoneId
+   * - Si créé par un SUPERVISEUR → ne peut créer que des COMMERCIAL dans son secteur
    */
   async create(
     dto: CreateUserDto,
-    currentUser?: { role: Role; zoneId?: string | null },
+    currentUser?: { id?: string; role: Role; zoneId?: string | null; secteurId?: string | null },
   ) {
+    // SUPERVISEUR ne peut créer que des COMMERCIAL
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (dto.role !== Role.COMMERCIAL) {
+        throw new ForbiddenException('Un superviseur ne peut créer que des commerciaux');
+      }
+      // Force le supervisorId à être le superviseur courant
+      dto.supervisorId = currentUser.id;
+    }
+
     // Vérifie les doublons (phone et email)
     await this.checkDuplicates(dto.phone, dto.email);
 
@@ -187,8 +198,12 @@ export class UsersService {
 
   /**
    * Détail d'un utilisateur par ID.
+   * SUPERVISEUR ne peut voir que ses commerciaux.
    */
-  async findOne(id: string) {
+  async findOne(
+    id: string,
+    currentUser?: { id?: string; role: Role },
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -204,17 +219,43 @@ export class UsersService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
+    // SUPERVISEUR ne peut voir que ses propres commerciaux
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (user.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Accès non autorisé à cet utilisateur');
+      }
+    }
+
     return user;
   }
 
   /**
    * Met à jour un utilisateur.
+   * SUPERVISEUR ne peut modifier que ses commerciaux.
    */
-  async update(id: string, dto: UpdateUserDto) {
+  async update(
+    id: string,
+    dto: UpdateUserDto,
+    currentUser?: { id?: string; role: Role },
+  ) {
     // Vérifie que l'utilisateur existe
     const existing = await this.prisma.user.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // SUPERVISEUR ne peut modifier que ses propres commerciaux
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (existing.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Accès non autorisé à cet utilisateur');
+      }
+      // SUPERVISEUR ne peut pas changer le rôle ou le superviseur
+      if (dto.role && dto.role !== Role.COMMERCIAL) {
+        throw new ForbiddenException('Un superviseur ne peut pas changer le rôle');
+      }
+      if (dto.supervisorId !== undefined && dto.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Un superviseur ne peut pas réaffecter un commercial');
+      }
     }
 
     // Vérifie les doublons si phone ou email changent
@@ -328,12 +369,19 @@ export class UsersService {
 
   /**
    * Désactive un utilisateur (soft delete).
-   * Ne supprime pas : on met isActive à false.
+   * SUPERVISEUR ne peut désactiver que ses commerciaux.
    */
-  async deactivate(id: string) {
+  async deactivate(id: string, currentUser?: { id?: string; role: Role }) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // SUPERVISEUR ne peut désactiver que ses propres commerciaux
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (user.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Accès non autorisé à cet utilisateur');
+      }
     }
 
     return this.prisma.user.update({
@@ -345,11 +393,19 @@ export class UsersService {
 
   /**
    * Réactive un utilisateur.
+   * SUPERVISEUR ne peut réactiver que ses commerciaux.
    */
-  async activate(id: string) {
+  async activate(id: string, currentUser?: { id?: string; role: Role }) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // SUPERVISEUR ne peut réactiver que ses propres commerciaux
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (user.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Accès non autorisé à cet utilisateur');
+      }
     }
 
     return this.prisma.user.update({
@@ -378,11 +434,19 @@ export class UsersService {
 
   /**
    * Régénère un mot de passe aléatoire pour un utilisateur.
+   * SUPERVISEUR ne peut réinitialiser que le mot de passe de ses commerciaux.
    */
-  async resetPassword(id: string) {
+  async resetPassword(id: string, currentUser?: { id?: string; role: Role }) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // SUPERVISEUR ne peut réinitialiser que le mot de passe de ses propres commerciaux
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (user.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Accès non autorisé à cet utilisateur');
+      }
     }
 
     const newPassword = Math.random().toString(36).slice(-8);

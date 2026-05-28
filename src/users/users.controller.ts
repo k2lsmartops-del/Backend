@@ -18,8 +18,8 @@ import { QueryUsersDto } from './dto/query-users.dto';
 
 /**
  * Contrôleur de gestion des utilisateurs.
- * La plupart des routes sont réservées à l'ADMIN.
- * Certaines routes sont accessibles aux SUPERVISEURS.
+ * ADMIN et COORDINATEUR peuvent gérer tous les utilisateurs.
+ * SUPERVISEUR peut gérer uniquement les commerciaux de son secteur.
  */
 @Controller('users')
 export class UsersController {
@@ -36,11 +36,11 @@ export class UsersController {
   }
 
   /**
-   * POST /users — Créer un utilisateur (tout type de rôle).
-   * Si créé par un COORDINATEUR, l'utilisateur hérite automatiquement de sa zoneId.
+   * POST /users — Créer un utilisateur.
+   * SUPERVISEUR ne peut créer que des COMMERCIAL dans son secteur.
    */
   @Post()
-  @Roles(Role.ADMIN, Role.COORDINATEUR)
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
   create(
     @CurrentUser() currentUser: Omit<User, 'password'>,
     @Body() dto: CreateUserDto,
@@ -63,41 +63,55 @@ export class UsersController {
 
   /**
    * GET /users/:id — Détail d'un utilisateur.
+   * SUPERVISEUR peut voir uniquement ses commerciaux.
    */
   @Get(':id')
-  @Roles(Role.ADMIN, Role.COORDINATEUR)
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.findOne(id);
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  findOne(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.findOne(id, currentUser);
   }
 
   /**
    * PATCH /users/:id — Mettre à jour un utilisateur.
+   * SUPERVISEUR peut modifier uniquement ses commerciaux.
    */
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.COORDINATEUR)
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
   update(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    return this.usersService.update(id, dto);
+    return this.usersService.update(id, dto, currentUser);
   }
 
   /**
    * PATCH /users/:id/deactivate — Désactiver un utilisateur (soft delete).
+   * SUPERVISEUR peut désactiver uniquement ses commerciaux.
    */
   @Patch(':id/deactivate')
-  @Roles(Role.ADMIN, Role.COORDINATEUR)
-  deactivate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.deactivate(id);
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  deactivate(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.deactivate(id, currentUser);
   }
 
   /**
    * PATCH /users/:id/activate — Réactiver un utilisateur.
+   * SUPERVISEUR peut réactiver uniquement ses commerciaux.
    */
   @Patch(':id/activate')
-  @Roles(Role.ADMIN, Role.COORDINATEUR)
-  activate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.activate(id);
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  activate(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.activate(id, currentUser);
   }
 
   /**
@@ -111,10 +125,14 @@ export class UsersController {
 
   /**
    * POST /users/:id/reset-password — Régénérer le mot de passe.
+   * SUPERVISEUR peut réinitialiser le mot de passe de ses commerciaux.
    */
   @Post(':id/reset-password')
-  @Roles(Role.ADMIN, Role.COORDINATEUR)
-  resetPassword(@Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.resetPassword(id);
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  resetPassword(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.resetPassword(id, currentUser);
   }
 }
