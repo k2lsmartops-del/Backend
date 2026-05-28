@@ -38,4 +38,8 @@ export class QueryUsersDto extends PaginationDto {
   @IsOptional()
   @IsUUID('4')
   supervisorId?: string;
+
+  @IsOptional()
+  @IsUUID('4')
+  secteurId?: string;
 }

@@ -64,6 +64,19 @@ export class SubmissionsController {
   }
 
   /**
+   * GET /submissions/stats — Statistiques pour le dashboard.
+   * Filtrées automatiquement selon le rôle de l'utilisateur.
+   */
+  @Get('stats')
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  getStats(
+    @CurrentUser() user: Omit<User, 'password'>,
+    @Query('zoneId') zoneId?: string,
+  ) {
+    return this.submissionsService.getStats(user, zoneId);
+  }
+
+  /**
    * GET /submissions — Liste paginée des soumissions.
    * Filtrée automatiquement selon le rôle de l'utilisateur.
    */

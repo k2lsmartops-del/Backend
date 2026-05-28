@@ -20,6 +20,9 @@ const users_module_1 = require("./users/users.module");
 const submissions_module_1 = require("./submissions/submissions.module");
 const uploads_module_1 = require("./uploads/uploads.module");
 const prisma_module_1 = require("./prisma/prisma.module");
+const zones_module_1 = require("./zones/zones.module");
+const secteurs_module_1 = require("./secteurs/secteurs.module");
+const communes_module_1 = require("./communes/communes.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const configuration_1 = __importDefault(require("./config/configuration"));
@@ -40,6 +43,9 @@ exports.AppModule = AppModule = __decorate([
             users_module_1.UsersModule,
             submissions_module_1.SubmissionsModule,
             uploads_module_1.UploadsModule,
+            zones_module_1.ZonesModule,
+            secteurs_module_1.SecteursModule,
+            communes_module_1.CommunesModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [

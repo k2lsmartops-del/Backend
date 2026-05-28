@@ -1,3 +1,4 @@
+import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -5,7 +6,10 @@ import { QueryUsersDto } from './dto/query-users.dto';
 export declare class UsersService {
     private prisma;
     constructor(prisma: PrismaService);
-    create(dto: CreateUserDto): Promise<{
+    create(dto: CreateUserDto, currentUser?: {
+        role: Role;
+        zoneId?: string | null;
+    }): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
@@ -13,6 +17,11 @@ export declare class UsersService {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -33,7 +42,11 @@ export declare class UsersService {
             fullName: string;
         } | null;
     }>;
-    findAll(query: QueryUsersDto): Promise<{
+    findAll(query: QueryUsersDto, currentUser?: {
+        role: Role;
+        zoneId?: string | null;
+        secteurId?: string | null;
+    }): Promise<{
         data: {
             id: string;
             isActive: boolean;
@@ -42,6 +55,11 @@ export declare class UsersService {
             zone: {
                 id: string;
                 name: string;
+                coordinator: {
+                    id: string;
+                    matricule: string;
+                    fullName: string;
+                } | null;
             } | null;
             matricule: string;
             email: string | null;
@@ -77,6 +95,11 @@ export declare class UsersService {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -111,6 +134,11 @@ export declare class UsersService {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -139,6 +167,11 @@ export declare class UsersService {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -167,6 +200,11 @@ export declare class UsersService {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -195,6 +233,11 @@ export declare class UsersService {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -215,6 +258,10 @@ export declare class UsersService {
             fullName: string;
         } | null;
     }>;
+    resetPassword(id: string): Promise<{
+        message: string;
+        temporaryPassword: string;
+    }>;
     getTeam(supervisorId: string): Promise<{
         id: string;
         fullName: string;
@@ -227,5 +274,6 @@ export declare class UsersService {
     }[]>;
     private checkDuplicates;
     private validateRoleAssignments;
+    private resolveHierarchy;
     private generateMatricule;
 }

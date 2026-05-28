@@ -16,7 +16,7 @@ export declare class UsersController {
         validatedCount: number;
         lastActivity: Date;
     }[]>;
-    create(dto: CreateUserDto): Promise<{
+    create(currentUser: Omit<User, 'password'>, dto: CreateUserDto): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
@@ -24,6 +24,11 @@ export declare class UsersController {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -44,7 +49,7 @@ export declare class UsersController {
             fullName: string;
         } | null;
     }>;
-    findAll(query: QueryUsersDto): Promise<{
+    findAll(user: Omit<User, 'password'>, query: QueryUsersDto): Promise<{
         data: {
             id: string;
             isActive: boolean;
@@ -53,6 +58,11 @@ export declare class UsersController {
             zone: {
                 id: string;
                 name: string;
+                coordinator: {
+                    id: string;
+                    matricule: string;
+                    fullName: string;
+                } | null;
             } | null;
             matricule: string;
             email: string | null;
@@ -88,6 +98,11 @@ export declare class UsersController {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -122,6 +137,11 @@ export declare class UsersController {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -150,6 +170,11 @@ export declare class UsersController {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -178,6 +203,11 @@ export declare class UsersController {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -206,6 +236,11 @@ export declare class UsersController {
         zone: {
             id: string;
             name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
         } | null;
         matricule: string;
         email: string | null;
@@ -225,5 +260,9 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+    }>;
+    resetPassword(id: string): Promise<{
+        message: string;
+        temporaryPassword: string;
     }>;
 }

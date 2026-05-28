@@ -656,6 +656,106 @@ export class SubmissionsService {
     });
   }
 
+  /**
+   * Statistiques pour le dashboard.
+   * Filtrées selon le rôle de l'utilisateur.
+   */
+  async getStats(
+    user: Omit<User, 'password'>,
+    zoneId?: string,
+  ) {
+    // Déterminer le filtre de zone
+    let effectiveZoneId: string | undefined;
+    if (user.role === Role.COORDINATEUR) {
+      effectiveZoneId = user.zoneId || undefined;
+    } else if (user.role === Role.ADMIN && zoneId) {
+      effectiveZoneId = zoneId;
+    }
+
+    const where: Record<string, unknown> = {};
+    if (effectiveZoneId) {
+      where.zoneId = effectiveZoneId;
+    }
+
+    // Compter par statut
+    const [
+      total,
+      draft,
+      submitted,
+      supervisorApproved,
+      validated,
+      rejectedL1,
+      rejectedL2,
+      prospects,
+      marchands,
+    ] = await Promise.all([
+      this.prisma.submission.count({ where }),
+      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.DRAFT } }),
+      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.SUBMITTED } }),
+      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.SUPERVISOR_APPROVED } }),
+      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.VALIDATED } }),
+      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.REJECTED_L1 } }),
+      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.REJECTED_L2 } }),
+      this.prisma.submission.count({ where: { ...where, type: SubmissionType.PROSPECT } }),
+      this.prisma.submission.count({ where: { ...where, type: SubmissionType.MARCHAND } }),
+    ]);
+
+    // Stats aujourd'hui
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayWhere = { ...where, createdAt: { gte: today } };
+    const [todayTotal, todayValidated] = await Promise.all([
+      this.prisma.submission.count({ where: todayWhere }),
+      this.prisma.submission.count({ where: { ...todayWhere, status: SubmissionStatus.VALIDATED } }),
+    ]);
+
+    // Stats cette semaine
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekWhere = { ...where, createdAt: { gte: weekStart } };
+    const [weekTotal, weekValidated] = await Promise.all([
+      this.prisma.submission.count({ where: weekWhere }),
+      this.prisma.submission.count({ where: { ...weekWhere, status: SubmissionStatus.VALIDATED } }),
+    ]);
+
+    // Taux de validation
+    const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
+
+    // En attente de validation
+    const pendingL1 = submitted;
+    const pendingL2 = supervisorApproved;
+
+    return {
+      total,
+      byStatus: {
+        draft,
+        submitted,
+        supervisorApproved,
+        validated,
+        rejectedL1,
+        rejectedL2,
+      },
+      byType: {
+        prospects,
+        marchands,
+      },
+      today: {
+        total: todayTotal,
+        validated: todayValidated,
+      },
+      week: {
+        total: weekTotal,
+        validated: weekValidated,
+      },
+      validationRate,
+      pending: {
+        level1: pendingL1,
+        level2: pendingL2,
+      },
+    };
+  }
+
   // ──────────────────────────────────────────────
   //  Méthodes utilitaires privées
   // ──────────────────────────────────────────────

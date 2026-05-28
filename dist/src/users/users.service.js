@@ -61,7 +61,13 @@ const USER_SELECT = {
     supervisorId: true,
     createdAt: true,
     updatedAt: true,
-    zone: { select: { id: true, name: true } },
+    zone: {
+        select: {
+            id: true,
+            name: true,
+            coordinator: { select: { id: true, fullName: true, matricule: true } },
+        },
+    },
     secteur: { select: { id: true, name: true } },
     supervisor: { select: { id: true, fullName: true, matricule: true } },
 };
@@ -70,9 +76,14 @@ let UsersService = class UsersService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async create(dto) {
+    async create(dto, currentUser) {
         await this.checkDuplicates(dto.phone, dto.email);
-        await this.validateRoleAssignments(dto.role, dto.zoneId, dto.supervisorId);
+        let effectiveZoneId = dto.zoneId;
+        if (currentUser?.role === client_1.Role.COORDINATEUR && currentUser.zoneId) {
+            effectiveZoneId = currentUser.zoneId;
+        }
+        await this.validateRoleAssignments(dto.role, effectiveZoneId, dto.supervisorId);
+        const { zoneId, secteurId } = await this.resolveHierarchy(dto.role, dto.supervisorId, dto.secteurId, effectiveZoneId);
         const matricule = await this.generateMatricule(dto.role);
         const hashedPassword = await bcrypt.hash(dto.password, 12);
         const status = dto.status || client_1.AgentStatus.ACTIF;
@@ -87,25 +98,38 @@ let UsersService = class UsersService {
                 role: dto.role,
                 status,
                 isActive,
-                zoneId: dto.zoneId || null,
-                secteurId: dto.secteurId || null,
+                zoneId,
+                secteurId,
                 supervisorId: dto.supervisorId || null,
             },
             select: USER_SELECT,
         });
     }
-    async findAll(query) {
-        const { page = 1, limit = 20, search, role, status, isActive, zoneId, supervisorId, } = query;
+    async findAll(query, currentUser) {
+        const { page = 1, limit = 20, search, role, status, isActive, zoneId, supervisorId, secteurId, } = query;
         const skip = (page - 1) * limit;
         const where = {};
-        if (role)
+        if (currentUser) {
+            switch (currentUser.role) {
+                case client_1.Role.COORDINATEUR:
+                    where.zoneId = currentUser.zoneId;
+                    break;
+                case client_1.Role.SUPERVISEUR:
+                    where.secteurId = currentUser.secteurId;
+                    where.role = client_1.Role.COMMERCIAL;
+                    break;
+            }
+        }
+        if (role && !where.role)
             where.role = role;
         if (status)
             where.status = status;
         if (isActive !== undefined)
             where.isActive = isActive;
-        if (zoneId)
+        if (zoneId && !where.zoneId)
             where.zoneId = zoneId;
+        if (secteurId && !where.secteurId)
+            where.secteurId = secteurId;
         if (supervisorId)
             where.supervisorId = supervisorId;
         if (search) {
@@ -160,12 +184,9 @@ let UsersService = class UsersService {
             await this.checkDuplicates(dto.phone || existing.phone, dto.email !== undefined ? dto.email : existing.email, id);
         }
         const newRole = dto.role || existing.role;
-        const newZoneId = dto.zoneId !== undefined ? dto.zoneId : existing.zoneId;
         const newSupervisorId = dto.supervisorId !== undefined ? dto.supervisorId : existing.supervisorId;
-        if (dto.role ||
-            dto.zoneId !== undefined ||
-            dto.supervisorId !== undefined) {
-            await this.validateRoleAssignments(newRole, newZoneId, newSupervisorId);
+        if (dto.role || dto.supervisorId !== undefined) {
+            await this.validateRoleAssignments(newRole, null, newSupervisorId);
         }
         const data = {};
         if (dto.fullName !== undefined)
@@ -176,12 +197,46 @@ let UsersService = class UsersService {
             data.phone = dto.phone;
         if (dto.role !== undefined)
             data.role = dto.role;
-        if (dto.zoneId !== undefined)
-            data.zoneId = dto.zoneId;
         if (dto.supervisorId !== undefined)
             data.supervisorId = dto.supervisorId;
-        if (dto.secteurId !== undefined)
-            data.secteurId = dto.secteurId;
+        if (newRole === client_1.Role.COMMERCIAL && newSupervisorId) {
+            const { zoneId, secteurId } = await this.resolveHierarchy(newRole, newSupervisorId, dto.secteurId !== undefined ? dto.secteurId : existing.secteurId, existing.zoneId);
+            data.zoneId = zoneId;
+            data.secteurId = secteurId;
+        }
+        else if (newRole === client_1.Role.SUPERVISEUR) {
+            const newSecteurId = dto.secteurId !== undefined ? dto.secteurId : existing.secteurId;
+            if (newSecteurId) {
+                const { zoneId, secteurId } = await this.resolveHierarchy(newRole, null, newSecteurId, existing.zoneId);
+                data.zoneId = zoneId;
+                data.secteurId = secteurId;
+            }
+        }
+        const isDeactivating = (dto.status !== undefined && dto.status !== client_1.AgentStatus.ACTIF) ||
+            (dto.isActive === false);
+        if (isDeactivating && existing.role === client_1.Role.SUPERVISEUR) {
+            const activeCommerciaux = await this.prisma.user.count({
+                where: {
+                    supervisorId: id,
+                    role: client_1.Role.COMMERCIAL,
+                    isActive: true,
+                },
+            });
+            if (activeCommerciaux > 0) {
+                throw new common_1.BadRequestException(`Ce superviseur a ${activeCommerciaux} commercial(aux) actif(s). ` +
+                    `Réaffectez-les d'abord.`);
+            }
+        }
+        if (isDeactivating && existing.role === client_1.Role.COORDINATEUR) {
+            const coordinatedZone = await this.prisma.zone.findFirst({
+                where: { coordinatorId: id },
+                select: { name: true },
+            });
+            if (coordinatedZone) {
+                throw new common_1.BadRequestException(`Ce coordinateur pilote la zone "${coordinatedZone.name}". ` +
+                    `Retirez-le de la zone d'abord.`);
+            }
+        }
         if (dto.status !== undefined) {
             data.status = dto.status;
             data.isActive = dto.status === client_1.AgentStatus.ACTIF;
@@ -231,6 +286,22 @@ let UsersService = class UsersService {
             data: { isActive: false, status: client_1.AgentStatus.SUSPENDU },
             select: USER_SELECT,
         });
+    }
+    async resetPassword(id) {
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        const newPassword = Math.random().toString(36).slice(-8);
+        const hashed = await bcrypt.hash(newPassword, 12);
+        await this.prisma.user.update({
+            where: { id },
+            data: { password: hashed },
+        });
+        return {
+            message: 'Mot de passe réinitialisé',
+            temporaryPassword: newPassword,
+        };
     }
     async getTeam(supervisorId) {
         const members = await this.prisma.user.findMany({
@@ -290,25 +361,15 @@ let UsersService = class UsersService {
         }
     }
     async validateRoleAssignments(role, zoneId, supervisorId) {
-        if (role === client_1.Role.SUPERVISEUR) {
-            if (!zoneId) {
-                throw new common_1.BadRequestException('Un superviseur doit être rattaché à une zone');
-            }
+        if (zoneId) {
             const zone = await this.prisma.zone.findUnique({ where: { id: zoneId } });
             if (!zone) {
                 throw new common_1.NotFoundException('Zone non trouvée');
             }
         }
         if (role === client_1.Role.COMMERCIAL) {
-            if (!zoneId) {
-                throw new common_1.BadRequestException('Un commercial doit être rattaché à une zone');
-            }
             if (!supervisorId) {
                 throw new common_1.BadRequestException('Un commercial doit être rattaché à un superviseur');
-            }
-            const zone = await this.prisma.zone.findUnique({ where: { id: zoneId } });
-            if (!zone) {
-                throw new common_1.NotFoundException('Zone non trouvée');
             }
             const supervisor = await this.prisma.user.findUnique({
                 where: { id: supervisorId },
@@ -319,7 +380,40 @@ let UsersService = class UsersService {
             if (supervisor.role !== client_1.Role.SUPERVISEUR) {
                 throw new common_1.BadRequestException("L'utilisateur désigné n'est pas un superviseur");
             }
+            if (!supervisor.secteurId) {
+                throw new common_1.BadRequestException('Le superviseur doit être assigné à un secteur avant de lui rattacher des commerciaux');
+            }
         }
+    }
+    async resolveHierarchy(role, supervisorId, secteurId, zoneId) {
+        if (role === client_1.Role.COMMERCIAL && supervisorId) {
+            const supervisor = await this.prisma.user.findUnique({
+                where: { id: supervisorId },
+                select: { zoneId: true, secteurId: true },
+            });
+            if (supervisor) {
+                return {
+                    zoneId: supervisor.zoneId,
+                    secteurId: supervisor.secteurId,
+                };
+            }
+        }
+        if (role === client_1.Role.SUPERVISEUR && secteurId) {
+            const secteur = await this.prisma.secteur.findUnique({
+                where: { id: secteurId },
+                select: { zoneId: true },
+            });
+            if (secteur) {
+                return {
+                    zoneId: secteur.zoneId,
+                    secteurId,
+                };
+            }
+        }
+        return {
+            zoneId: zoneId || null,
+            secteurId: secteurId || null,
+        };
     }
     async generateMatricule(role) {
         const prefixMap = {

@@ -35,6 +35,9 @@ let SubmissionsController = class SubmissionsController {
     sync(dto, user) {
         return this.submissionsService.syncBatch(dto.submissions, user);
     }
+    getStats(user, zoneId) {
+        return this.submissionsService.getStats(user, zoneId);
+    }
     findAll(query, user) {
         return this.submissionsService.findAll(query, user);
     }
@@ -82,6 +85,15 @@ __decorate([
     __metadata("design:paramtypes", [sync_submission_dto_1.SyncSubmissionsDto, Object]),
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "sync", null);
+__decorate([
+    (0, common_1.Get)('stats'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('zoneId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], SubmissionsController.prototype, "getStats", null);
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),

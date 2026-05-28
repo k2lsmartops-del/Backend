@@ -21,6 +21,7 @@ class QueryUsersDto extends pagination_dto_1.PaginationDto {
     isActive;
     zoneId;
     supervisorId;
+    secteurId;
 }
 exports.QueryUsersDto = QueryUsersDto;
 __decorate([
@@ -54,4 +55,9 @@ __decorate([
     (0, class_validator_1.IsUUID)('4'),
     __metadata("design:type", String)
 ], QueryUsersDto.prototype, "supervisorId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsUUID)('4'),
+    __metadata("design:type", String)
+], QueryUsersDto.prototype, "secteurId", void 0);
 //# sourceMappingURL=query-users.dto.js.map

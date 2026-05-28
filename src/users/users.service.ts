@@ -28,7 +28,13 @@ const USER_SELECT = {
   supervisorId: true,
   createdAt: true,
   updatedAt: true,
-  zone: { select: { id: true, name: true } },
+  zone: {
+    select: {
+      id: true,
+      name: true,
+      coordinator: { select: { id: true, fullName: true, matricule: true } },
+    },
+  },
   secteur: { select: { id: true, name: true } },
   supervisor: { select: { id: true, fullName: true, matricule: true } },
 };
@@ -43,13 +49,34 @@ export class UsersService {
 
   /**
    * Crée un utilisateur avec génération automatique du matricule.
+   * Applique la hiérarchie automatiquement :
+   * - COMMERCIAL assigné à un superviseur → hérite secteurId et zoneId du superviseur
+   * - SUPERVISEUR assigné à un secteur → hérite zoneId du secteur
+   * - Si créé par un COORDINATEUR → hérite automatiquement de sa zoneId
    */
-  async create(dto: CreateUserDto) {
+  async create(
+    dto: CreateUserDto,
+    currentUser?: { role: Role; zoneId?: string | null },
+  ) {
     // Vérifie les doublons (phone et email)
     await this.checkDuplicates(dto.phone, dto.email);
 
+    // Si créé par un COORDINATEUR, forcer la zoneId du coordinateur
+    let effectiveZoneId = dto.zoneId;
+    if (currentUser?.role === Role.COORDINATEUR && currentUser.zoneId) {
+      effectiveZoneId = currentUser.zoneId;
+    }
+
     // Valide les rattachements selon le rôle
-    await this.validateRoleAssignments(dto.role, dto.zoneId, dto.supervisorId);
+    await this.validateRoleAssignments(dto.role, effectiveZoneId, dto.supervisorId);
+
+    // Applique la hiérarchie automatiquement
+    const { zoneId, secteurId } = await this.resolveHierarchy(
+      dto.role,
+      dto.supervisorId,
+      dto.secteurId,
+      effectiveZoneId,
+    );
 
     // Génère le matricule automatiquement
     const matricule = await this.generateMatricule(dto.role);
@@ -71,8 +98,8 @@ export class UsersService {
         role: dto.role,
         status,
         isActive,
-        zoneId: dto.zoneId || null,
-        secteurId: dto.secteurId || null,
+        zoneId,
+        secteurId,
         supervisorId: dto.supervisorId || null,
       },
       select: USER_SELECT,
@@ -82,7 +109,10 @@ export class UsersService {
   /**
    * Liste paginée des utilisateurs avec filtres.
    */
-  async findAll(query: QueryUsersDto) {
+  async findAll(
+    query: QueryUsersDto,
+    currentUser?: { role: Role; zoneId?: string | null; secteurId?: string | null },
+  ) {
     const {
       page = 1,
       limit = 20,
@@ -92,16 +122,35 @@ export class UsersService {
       isActive,
       zoneId,
       supervisorId,
+      secteurId,
     } = query;
     const skip = (page - 1) * limit;
 
     // Construction du filtre WHERE
     const where: Record<string, unknown> = {};
 
-    if (role) where.role = role;
+    // Filtrage automatique selon le rôle du demandeur
+    if (currentUser) {
+      switch (currentUser.role) {
+        case Role.COORDINATEUR:
+          // Ne voit que les users de SA zone
+          where.zoneId = currentUser.zoneId;
+          break;
+        case Role.SUPERVISEUR:
+          // Ne voit que les commerciaux de SON secteur
+          where.secteurId = currentUser.secteurId;
+          where.role = Role.COMMERCIAL;
+          break;
+        // ADMIN voit tout — pas de filtre automatique
+      }
+    }
+
+    // Filtres additionnels depuis la query
+    if (role && !where.role) where.role = role;
     if (status) where.status = status;
     if (isActive !== undefined) where.isActive = isActive;
-    if (zoneId) where.zoneId = zoneId;
+    if (zoneId && !where.zoneId) where.zoneId = zoneId;
+    if (secteurId && !where.secteurId) where.secteurId = secteurId;
     if (supervisorId) where.supervisorId = supervisorId;
 
     // Recherche textuelle sur plusieurs champs
@@ -177,18 +226,13 @@ export class UsersService {
       );
     }
 
-    // Valide les rattachements si le rôle ou la zone/superviseur changent
+    // Valide les rattachements si le rôle ou le superviseur changent
     const newRole = dto.role || existing.role;
-    const newZoneId = dto.zoneId !== undefined ? dto.zoneId : existing.zoneId;
     const newSupervisorId =
       dto.supervisorId !== undefined ? dto.supervisorId : existing.supervisorId;
 
-    if (
-      dto.role ||
-      dto.zoneId !== undefined ||
-      dto.supervisorId !== undefined
-    ) {
-      await this.validateRoleAssignments(newRole, newZoneId, newSupervisorId);
+    if (dto.role || dto.supervisorId !== undefined) {
+      await this.validateRoleAssignments(newRole, null, newSupervisorId);
     }
 
     // Prépare les données à mettre à jour
@@ -197,11 +241,71 @@ export class UsersService {
     if (dto.email !== undefined) data.email = dto.email;
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.role !== undefined) data.role = dto.role;
-    if (dto.zoneId !== undefined) data.zoneId = dto.zoneId;
     if (dto.supervisorId !== undefined) data.supervisorId = dto.supervisorId;
-    if (dto.secteurId !== undefined) data.secteurId = dto.secteurId;
+
+    // Applique la hiérarchie automatiquement
+    // - Pour COMMERCIAL : hérite toujours du superviseur si assigné
+    // - Pour SUPERVISEUR : hérite du secteur si assigné
+    if (newRole === Role.COMMERCIAL && newSupervisorId) {
+      const { zoneId, secteurId } = await this.resolveHierarchy(
+        newRole,
+        newSupervisorId,
+        dto.secteurId !== undefined ? dto.secteurId : existing.secteurId,
+        existing.zoneId,
+      );
+      data.zoneId = zoneId;
+      data.secteurId = secteurId;
+    } else if (newRole === Role.SUPERVISEUR) {
+      const newSecteurId =
+        dto.secteurId !== undefined ? dto.secteurId : existing.secteurId;
+      if (newSecteurId) {
+        const { zoneId, secteurId } = await this.resolveHierarchy(
+          newRole,
+          null,
+          newSecteurId,
+          existing.zoneId,
+        );
+        data.zoneId = zoneId;
+        data.secteurId = secteurId;
+      }
+    }
 
     // Gestion du statut agent (4 états)
+    const isDeactivating =
+      (dto.status !== undefined && dto.status !== AgentStatus.ACTIF) ||
+      (dto.isActive === false);
+
+    // GARDE-FOU CAS 4a : Refuser désactivation SUPERVISEUR si commerciaux actifs
+    if (isDeactivating && existing.role === Role.SUPERVISEUR) {
+      const activeCommerciaux = await this.prisma.user.count({
+        where: {
+          supervisorId: id,
+          role: Role.COMMERCIAL,
+          isActive: true,
+        },
+      });
+      if (activeCommerciaux > 0) {
+        throw new BadRequestException(
+          `Ce superviseur a ${activeCommerciaux} commercial(aux) actif(s). ` +
+            `Réaffectez-les d'abord.`,
+        );
+      }
+    }
+
+    // GARDE-FOU CAS 4b : Refuser désactivation COORDINATEUR si pilote une zone
+    if (isDeactivating && existing.role === Role.COORDINATEUR) {
+      const coordinatedZone = await this.prisma.zone.findFirst({
+        where: { coordinatorId: id },
+        select: { name: true },
+      });
+      if (coordinatedZone) {
+        throw new BadRequestException(
+          `Ce coordinateur pilote la zone "${coordinatedZone.name}". ` +
+            `Retirez-le de la zone d'abord.`,
+        );
+      }
+    }
+
     if (dto.status !== undefined) {
       data.status = dto.status;
       data.isActive = dto.status === AgentStatus.ACTIF;
@@ -270,6 +374,29 @@ export class UsersService {
       data: { isActive: false, status: AgentStatus.SUSPENDU },
       select: USER_SELECT,
     });
+  }
+
+  /**
+   * Régénère un mot de passe aléatoire pour un utilisateur.
+   */
+  async resetPassword(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const newPassword = Math.random().toString(36).slice(-8);
+    const hashed = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { password: hashed },
+    });
+
+    return {
+      message: 'Mot de passe réinitialisé',
+      temporaryPassword: newPassword,
+    };
   }
 
   /**
@@ -355,43 +482,28 @@ export class UsersService {
 
   /**
    * Valide les règles de rattachement selon le rôle :
-   *  - SUPERVISEUR : zoneId obligatoire
-   *  - COMMERCIAL : zoneId + supervisorId obligatoires
-   *  - COORDINATEUR, ADMIN, CLIENT : aucun rattachement requis
+   *  - COMMERCIAL : supervisorId obligatoire (zoneId et secteurId hérités automatiquement)
+   *  - SUPERVISEUR, COORDINATEUR, ADMIN, CLIENT : aucun rattachement obligatoire
    */
   private async validateRoleAssignments(
     role: Role,
     zoneId?: string | null,
     supervisorId?: string | null,
   ) {
-    if (role === Role.SUPERVISEUR) {
-      if (!zoneId) {
-        throw new BadRequestException(
-          'Un superviseur doit être rattaché à une zone',
-        );
-      }
-      // Vérifie que la zone existe
+    // Vérifie que la zone existe si fournie
+    if (zoneId) {
       const zone = await this.prisma.zone.findUnique({ where: { id: zoneId } });
       if (!zone) {
         throw new NotFoundException('Zone non trouvée');
       }
     }
 
+    // COMMERCIAL : doit avoir un superviseur
     if (role === Role.COMMERCIAL) {
-      if (!zoneId) {
-        throw new BadRequestException(
-          'Un commercial doit être rattaché à une zone',
-        );
-      }
       if (!supervisorId) {
         throw new BadRequestException(
           'Un commercial doit être rattaché à un superviseur',
         );
-      }
-      // Vérifie que la zone existe
-      const zone = await this.prisma.zone.findUnique({ where: { id: zoneId } });
-      if (!zone) {
-        throw new NotFoundException('Zone non trouvée');
       }
       // Vérifie que le superviseur existe et est bien superviseur
       const supervisor = await this.prisma.user.findUnique({
@@ -405,7 +517,60 @@ export class UsersService {
           "L'utilisateur désigné n'est pas un superviseur",
         );
       }
+      // Vérifie que le superviseur a bien un secteur assigné
+      if (!supervisor.secteurId) {
+        throw new BadRequestException(
+          'Le superviseur doit être assigné à un secteur avant de lui rattacher des commerciaux',
+        );
+      }
     }
+  }
+
+  /**
+   * Résout la hiérarchie automatiquement :
+   * - COMMERCIAL assigné à un superviseur → hérite secteurId et zoneId du superviseur
+   * - SUPERVISEUR assigné à un secteur → hérite zoneId du secteur
+   * - COORDINATEUR → garde son zoneId tel quel
+   */
+  private async resolveHierarchy(
+    role: Role,
+    supervisorId?: string | null,
+    secteurId?: string | null,
+    zoneId?: string | null,
+  ): Promise<{ zoneId: string | null; secteurId: string | null }> {
+    // COMMERCIAL : hérite du superviseur
+    if (role === Role.COMMERCIAL && supervisorId) {
+      const supervisor = await this.prisma.user.findUnique({
+        where: { id: supervisorId },
+        select: { zoneId: true, secteurId: true },
+      });
+      if (supervisor) {
+        return {
+          zoneId: supervisor.zoneId,
+          secteurId: supervisor.secteurId,
+        };
+      }
+    }
+
+    // SUPERVISEUR : hérite du secteur
+    if (role === Role.SUPERVISEUR && secteurId) {
+      const secteur = await this.prisma.secteur.findUnique({
+        where: { id: secteurId },
+        select: { zoneId: true },
+      });
+      if (secteur) {
+        return {
+          zoneId: secteur.zoneId,
+          secteurId,
+        };
+      }
+    }
+
+    // Sinon, utilise les valeurs fournies
+    return {
+      zoneId: zoneId || null,
+      secteurId: secteurId || null,
+    };
   }
 
   /**

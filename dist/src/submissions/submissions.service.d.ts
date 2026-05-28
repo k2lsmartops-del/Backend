@@ -565,6 +565,34 @@ export declare class SubmissionsService {
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
+    getStats(user: Omit<User, 'password'>, zoneId?: string): Promise<{
+        total: number;
+        byStatus: {
+            draft: number;
+            submitted: number;
+            supervisorApproved: number;
+            validated: number;
+            rejectedL1: number;
+            rejectedL2: number;
+        };
+        byType: {
+            prospects: number;
+            marchands: number;
+        };
+        today: {
+            total: number;
+            validated: number;
+        };
+        week: {
+            total: number;
+            validated: number;
+        };
+        validationRate: number;
+        pending: {
+            level1: number;
+            level2: number;
+        };
+    }>;
     private validateFieldsByType;
     private validatePhotosByType;
     private checkAccessToSubmission;
