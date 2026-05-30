@@ -504,6 +504,7 @@ export class UsersService {
    * n'empêche pas le traitement des autres. Retourne un rapport détaillé.
    */
   async bulkImport(rows: BulkImportRowDto[]) {
+    console.log(`[Import] Début de l'import de ${rows.length} ligne(s)`);
     const norm = (v?: string | null) => (v ?? '').toString().trim();
     const rolePriority: Record<string, number> = {
       COORDINATEUR: 1,
@@ -541,6 +542,24 @@ export class UsersService {
         if (!fullName) throw new BadRequestException('Nom complet requis');
         if (!phone) throw new BadRequestException('Téléphone requis');
 
+        // Vérifie si l'utilisateur existe déjà (par téléphone)
+        const existingUser = await this.prisma.user.findUnique({
+          where: { phone },
+        });
+        if (existingUser) {
+          results.push({
+            row: rowNum,
+            status: 'error',
+            role,
+            fullName,
+            message: `Utilisateur déjà existant (${existingUser.matricule})`,
+          });
+          console.log(
+            `[Import] Ligne ${rowNum}: Utilisateur ${phone} déjà existant, ignoré`,
+          );
+          continue;
+        }
+
         // Mot de passe : fourni ou généré par défaut
         const rawPassword = norm(r.password) || this.generateDefaultPassword();
         if (rawPassword.length < 8) {
@@ -549,8 +568,17 @@ export class UsersService {
           );
         }
 
-        // Vérifie les doublons (phone / email)
-        await this.checkDuplicates(phone, email);
+        // Vérifie email unique si fourni
+        if (email) {
+          const existingEmail = await this.prisma.user.findUnique({
+            where: { email },
+          });
+          if (existingEmail) {
+            throw new ConflictException(
+              `Email ${email} déjà utilisé par ${existingEmail.matricule}`,
+            );
+          }
+        }
 
         const hashedPassword = await bcrypt.hash(rawPassword, 12);
 
@@ -607,6 +635,9 @@ export class UsersService {
             fullName,
             matricule,
           });
+          console.log(
+            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} créé (${matricule}) - Zone: ${zoneName}`,
+          );
         } else if (role === 'SUPERVISEUR') {
           const zoneName = norm(r.zone);
           const secteurName = norm(r.secteur);
@@ -678,6 +709,9 @@ export class UsersService {
             fullName,
             matricule,
           });
+          console.log(
+            `[Import] Ligne ${rowNum}: SUPERVISEUR ${fullName} créé (${matricule}) - Zone: ${zoneName}, Secteur: ${secteurName}`,
+          );
         } else if (role === 'COMMERCIAL') {
           const supPhone = norm(r.supervisorPhone);
           if (!supPhone) {
@@ -724,6 +758,9 @@ export class UsersService {
             fullName,
             matricule,
           });
+          console.log(
+            `[Import] Ligne ${rowNum}: COMMERCIAL ${fullName} créé (${matricule}) - Superviseur: ${supPhone}`,
+          );
         } else {
           throw new BadRequestException(
             `Rôle invalide: "${r.role}" (attendu: COORDINATEUR, SUPERVISEUR ou COMMERCIAL)`,
@@ -743,10 +780,17 @@ export class UsersService {
     // Rétablit l'ordre d'origine pour le rapport
     results.sort((a, b) => a.row - b.row);
 
+    const created = results.filter((r) => r.status === 'created').length;
+    const failed = results.filter((r) => r.status === 'error').length;
+
+    console.log(
+      `[Import] Terminé: ${created} créé(s), ${failed} échec(s) sur ${results.length} ligne(s)`,
+    );
+
     return {
       total: results.length,
-      created: results.filter((r) => r.status === 'created').length,
-      failed: results.filter((r) => r.status === 'error').length,
+      created,
+      failed,
       results,
     };
   }
