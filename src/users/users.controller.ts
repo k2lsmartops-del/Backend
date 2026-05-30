@@ -15,6 +15,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { BulkImportDto } from './dto/bulk-import.dto';
 
 /**
  * Contrôleur de gestion des utilisateurs.
@@ -33,6 +34,16 @@ export class UsersController {
   @Roles(Role.SUPERVISEUR)
   getTeam(@CurrentUser() user: Omit<User, 'password'>) {
     return this.usersService.getTeam(user.id);
+  }
+
+  /**
+   * POST /users/bulk-import — Import en masse d'une équipe complète.
+   * Réservé à l'ADMIN. Crée coordinateurs/zones, superviseurs/secteurs et commerciaux.
+   */
+  @Post('bulk-import')
+  @Roles(Role.ADMIN)
+  bulkImport(@Body() dto: BulkImportDto) {
+    return this.usersService.bulkImport(dto.rows);
   }
 
   /**

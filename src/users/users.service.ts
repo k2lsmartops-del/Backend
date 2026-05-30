@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { BulkImportRowDto } from './dto/bulk-import.dto';
 
 /**
  * Champs retournés pour un utilisateur (sans le password).
@@ -490,6 +491,271 @@ export class UsersService {
       data: { supervisorId: null, secteurId: null, zoneId: null },
       select: USER_SELECT,
     });
+  }
+
+  /**
+   * Import en masse d'une équipe complète depuis un fichier Excel.
+   * Traite les lignes dans l'ordre hiérarchique :
+   *   1. COORDINATEUR → crée/rattache la zone
+   *   2. SUPERVISEUR  → crée/rattache le secteur dans la zone
+   *   3. COMMERCIAL   → rattache au superviseur (par téléphone), hérite secteur/zone
+   *
+   * Chaque ligne est traitée indépendamment : une erreur sur une ligne
+   * n'empêche pas le traitement des autres. Retourne un rapport détaillé.
+   */
+  async bulkImport(rows: BulkImportRowDto[]) {
+    const norm = (v?: string | null) => (v ?? '').toString().trim();
+    const rolePriority: Record<string, number> = {
+      COORDINATEUR: 1,
+      SUPERVISEUR: 2,
+      COMMERCIAL: 3,
+    };
+
+    type RowResult = {
+      row: number;
+      status: 'created' | 'error';
+      role?: string;
+      fullName?: string;
+      matricule?: string;
+      message?: string;
+    };
+    const results: RowResult[] = [];
+
+    // Conserve le numéro de ligne d'origine (en-tête = ligne 1)
+    const indexed = rows.map((r, idx) => ({ r, rowNum: idx + 2 }));
+
+    // Tri par priorité de rôle pour garantir l'ordre de création
+    indexed.sort(
+      (a, b) =>
+        (rolePriority[norm(a.r.role).toUpperCase()] || 99) -
+        (rolePriority[norm(b.r.role).toUpperCase()] || 99),
+    );
+
+    for (const { r, rowNum } of indexed) {
+      const role = norm(r.role).toUpperCase();
+      const fullName = norm(r.fullName);
+      const phone = norm(r.phone);
+      const email = norm(r.email) || null;
+
+      try {
+        if (!fullName) throw new BadRequestException('Nom complet requis');
+        if (!phone) throw new BadRequestException('Téléphone requis');
+
+        // Mot de passe : fourni ou généré par défaut
+        const rawPassword = norm(r.password) || this.generateDefaultPassword();
+        if (rawPassword.length < 8) {
+          throw new BadRequestException(
+            'Le mot de passe doit contenir au moins 8 caractères',
+          );
+        }
+
+        // Vérifie les doublons (phone / email)
+        await this.checkDuplicates(phone, email);
+
+        const hashedPassword = await bcrypt.hash(rawPassword, 12);
+
+        if (role === 'COORDINATEUR') {
+          const zoneName = norm(r.zone);
+          if (!zoneName) {
+            throw new BadRequestException(
+              'Zone requise pour un coordinateur',
+            );
+          }
+
+          const matricule = await this.generateMatricule(Role.COORDINATEUR);
+          const user = await this.prisma.user.create({
+            data: {
+              matricule,
+              fullName,
+              email,
+              phone,
+              password: hashedPassword,
+              role: Role.COORDINATEUR,
+              status: AgentStatus.ACTIF,
+              isActive: true,
+            },
+          });
+
+          // Crée ou rattache la zone
+          let zone = await this.prisma.zone.findUnique({
+            where: { name: zoneName },
+          });
+          if (!zone) {
+            zone = await this.prisma.zone.create({
+              data: { name: zoneName, coordinatorId: user.id },
+            });
+          } else if (!zone.coordinatorId) {
+            await this.prisma.zone.update({
+              where: { id: zone.id },
+              data: { coordinatorId: user.id },
+            });
+          } else {
+            throw new ConflictException(
+              `La zone "${zoneName}" a déjà un coordinateur`,
+            );
+          }
+
+          await this.prisma.user.update({
+            where: { id: user.id },
+            data: { zoneId: zone.id },
+          });
+
+          results.push({
+            row: rowNum,
+            status: 'created',
+            role,
+            fullName,
+            matricule,
+          });
+        } else if (role === 'SUPERVISEUR') {
+          const zoneName = norm(r.zone);
+          const secteurName = norm(r.secteur);
+          if (!zoneName) {
+            throw new BadRequestException('Zone requise pour un superviseur');
+          }
+          if (!secteurName) {
+            throw new BadRequestException(
+              'Secteur requis pour un superviseur',
+            );
+          }
+
+          const zone = await this.prisma.zone.findUnique({
+            where: { name: zoneName },
+          });
+          if (!zone) {
+            throw new NotFoundException(
+              `Zone "${zoneName}" introuvable (importez d'abord le coordinateur)`,
+            );
+          }
+
+          const matricule = await this.generateMatricule(Role.SUPERVISEUR);
+          const user = await this.prisma.user.create({
+            data: {
+              matricule,
+              fullName,
+              email,
+              phone,
+              password: hashedPassword,
+              role: Role.SUPERVISEUR,
+              status: AgentStatus.ACTIF,
+              isActive: true,
+              zoneId: zone.id,
+            },
+          });
+
+          // Crée ou rattache le secteur
+          let secteur = await this.prisma.secteur.findFirst({
+            where: { name: secteurName, zoneId: zone.id },
+          });
+          if (!secteur) {
+            secteur = await this.prisma.secteur.create({
+              data: {
+                name: secteurName,
+                zoneId: zone.id,
+                supervisorId: user.id,
+              },
+            });
+          } else if (!secteur.supervisorId) {
+            await this.prisma.secteur.update({
+              where: { id: secteur.id },
+              data: { supervisorId: user.id },
+            });
+          } else {
+            throw new ConflictException(
+              `Le secteur "${secteurName}" a déjà un superviseur`,
+            );
+          }
+
+          await this.prisma.user.update({
+            where: { id: user.id },
+            data: { secteurId: secteur.id },
+          });
+
+          results.push({
+            row: rowNum,
+            status: 'created',
+            role,
+            fullName,
+            matricule,
+          });
+        } else if (role === 'COMMERCIAL') {
+          const supPhone = norm(r.supervisorPhone);
+          if (!supPhone) {
+            throw new BadRequestException(
+              'Téléphone du superviseur requis pour un commercial',
+            );
+          }
+
+          const supervisor = await this.prisma.user.findUnique({
+            where: { phone: supPhone },
+          });
+          if (!supervisor || supervisor.role !== Role.SUPERVISEUR) {
+            throw new NotFoundException(
+              `Superviseur (${supPhone}) introuvable`,
+            );
+          }
+          if (!supervisor.secteurId) {
+            throw new BadRequestException(
+              "Le superviseur n'a pas de secteur assigné",
+            );
+          }
+
+          const matricule = await this.generateMatricule(Role.COMMERCIAL);
+          await this.prisma.user.create({
+            data: {
+              matricule,
+              fullName,
+              email,
+              phone,
+              password: hashedPassword,
+              role: Role.COMMERCIAL,
+              status: AgentStatus.ACTIF,
+              isActive: true,
+              supervisorId: supervisor.id,
+              secteurId: supervisor.secteurId,
+              zoneId: supervisor.zoneId,
+            },
+          });
+
+          results.push({
+            row: rowNum,
+            status: 'created',
+            role,
+            fullName,
+            matricule,
+          });
+        } else {
+          throw new BadRequestException(
+            `Rôle invalide: "${r.role}" (attendu: COORDINATEUR, SUPERVISEUR ou COMMERCIAL)`,
+          );
+        }
+      } catch (e) {
+        results.push({
+          row: rowNum,
+          status: 'error',
+          role,
+          fullName,
+          message: e instanceof Error ? e.message : 'Erreur inconnue',
+        });
+      }
+    }
+
+    // Rétablit l'ordre d'origine pour le rapport
+    results.sort((a, b) => a.row - b.row);
+
+    return {
+      total: results.length,
+      created: results.filter((r) => r.status === 'created').length,
+      failed: results.filter((r) => r.status === 'error').length,
+      results,
+    };
+  }
+
+  /**
+   * Génère un mot de passe par défaut aléatoire (8+ caractères).
+   */
+  private generateDefaultPassword(): string {
+    return `K2l${Math.random().toString(36).slice(2, 8)}!`;
   }
 
   /**
