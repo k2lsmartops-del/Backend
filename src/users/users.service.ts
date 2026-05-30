@@ -562,6 +562,9 @@ export class UsersService {
 
         // Mot de passe : fourni ou généré par défaut
         const rawPassword = norm(r.password) || this.generateDefaultPassword();
+        console.log(
+          `[Import] Ligne ${rowNum}: Password original="${r.password}", après norm="${rawPassword}", length=${rawPassword.length}`,
+        );
         if (rawPassword.length < 8) {
           throw new BadRequestException(
             'Le mot de passe doit contenir au moins 8 caractères',
