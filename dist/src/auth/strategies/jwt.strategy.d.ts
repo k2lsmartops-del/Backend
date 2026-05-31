@@ -14,6 +14,19 @@ export declare class JwtStrategy extends JwtStrategy_base {
     private prisma;
     constructor(configService: ConfigService, prisma: PrismaService);
     validate(payload: JwtPayload): Promise<{
+        zone: {
+            id: string;
+            name: string;
+        } | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
+        supervisor: {
+            id: string;
+            matricule: string;
+            fullName: string;
+        } | null;
         id: string;
         isActive: boolean;
         createdAt: Date;

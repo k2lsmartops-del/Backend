@@ -43,6 +43,11 @@ export class AuthService {
       where: {
         OR: [{ phone: dto.identifiant }, { email: dto.identifiant }],
       },
+      include: {
+        zone: { select: { id: true, name: true } },
+        secteur: { select: { id: true, name: true } },
+        supervisor: { select: { id: true, fullName: true, matricule: true } },
+      },
     });
 
     // Message générique pour ne pas révéler si c'est l'identifiant ou le mdp qui est faux
@@ -82,7 +87,15 @@ export class AuthService {
     // Recherche le refresh token en base
     const storedToken = await this.prisma.refreshToken.findUnique({
       where: { token: refreshToken },
-      include: { user: true },
+      include: {
+        user: {
+          include: {
+            zone: { select: { id: true, name: true } },
+            secteur: { select: { id: true, name: true } },
+            supervisor: { select: { id: true, fullName: true, matricule: true } },
+          },
+        },
+      },
     });
 
     // Vérifie que le token existe et n'est pas révoqué

@@ -77,6 +77,12 @@ let UsersService = class UsersService {
         this.prisma = prisma;
     }
     async create(dto, currentUser) {
+        if (currentUser?.role === client_1.Role.SUPERVISEUR) {
+            if (dto.role !== client_1.Role.COMMERCIAL) {
+                throw new common_1.ForbiddenException('Un superviseur ne peut créer que des commerciaux');
+            }
+            dto.supervisorId = currentUser.id;
+        }
         await this.checkDuplicates(dto.phone, dto.email);
         let effectiveZoneId = dto.zoneId;
         if (currentUser?.role === client_1.Role.COORDINATEUR && currentUser.zoneId) {
@@ -160,7 +166,7 @@ let UsersService = class UsersService {
             },
         };
     }
-    async findOne(id) {
+    async findOne(id, currentUser) {
         const user = await this.prisma.user.findUnique({
             where: { id },
             select: {
@@ -173,12 +179,28 @@ let UsersService = class UsersService {
         if (!user) {
             throw new common_1.NotFoundException('Utilisateur non trouvé');
         }
+        if (currentUser?.role === client_1.Role.SUPERVISEUR) {
+            if (user.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Accès non autorisé à cet utilisateur');
+            }
+        }
         return user;
     }
-    async update(id, dto) {
+    async update(id, dto, currentUser) {
         const existing = await this.prisma.user.findUnique({ where: { id } });
         if (!existing) {
             throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (currentUser?.role === client_1.Role.SUPERVISEUR) {
+            if (existing.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Accès non autorisé à cet utilisateur');
+            }
+            if (dto.role && dto.role !== client_1.Role.COMMERCIAL) {
+                throw new common_1.ForbiddenException('Un superviseur ne peut pas changer le rôle');
+            }
+            if (dto.supervisorId !== undefined && dto.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Un superviseur ne peut pas réaffecter un commercial');
+            }
         }
         if (dto.phone || dto.email) {
             await this.checkDuplicates(dto.phone || existing.phone, dto.email !== undefined ? dto.email : existing.email, id);
@@ -254,10 +276,15 @@ let UsersService = class UsersService {
             select: USER_SELECT,
         });
     }
-    async deactivate(id) {
+    async deactivate(id, currentUser) {
         const user = await this.prisma.user.findUnique({ where: { id } });
         if (!user) {
             throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (currentUser?.role === client_1.Role.SUPERVISEUR) {
+            if (user.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Accès non autorisé à cet utilisateur');
+            }
         }
         return this.prisma.user.update({
             where: { id },
@@ -265,10 +292,15 @@ let UsersService = class UsersService {
             select: USER_SELECT,
         });
     }
-    async activate(id) {
+    async activate(id, currentUser) {
         const user = await this.prisma.user.findUnique({ where: { id } });
         if (!user) {
             throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (currentUser?.role === client_1.Role.SUPERVISEUR) {
+            if (user.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Accès non autorisé à cet utilisateur');
+            }
         }
         return this.prisma.user.update({
             where: { id },
@@ -287,10 +319,15 @@ let UsersService = class UsersService {
             select: USER_SELECT,
         });
     }
-    async resetPassword(id) {
+    async resetPassword(id, currentUser) {
         const user = await this.prisma.user.findUnique({ where: { id } });
         if (!user) {
             throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (currentUser?.role === client_1.Role.SUPERVISEUR) {
+            if (user.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Accès non autorisé à cet utilisateur');
+            }
         }
         const newPassword = Math.random().toString(36).slice(-8);
         const hashed = await bcrypt.hash(newPassword, 12);
@@ -302,6 +339,253 @@ let UsersService = class UsersService {
             message: 'Mot de passe réinitialisé',
             temporaryPassword: newPassword,
         };
+    }
+    async removeFromTeam(id, currentUser) {
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (user.role !== client_1.Role.COMMERCIAL) {
+            throw new common_1.BadRequestException('Seuls les commerciaux peuvent être retirés d\'une équipe');
+        }
+        if (currentUser?.role === client_1.Role.SUPERVISEUR) {
+            if (user.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Accès non autorisé à cet utilisateur');
+            }
+        }
+        return this.prisma.user.update({
+            where: { id },
+            data: { supervisorId: null, secteurId: null, zoneId: null },
+            select: USER_SELECT,
+        });
+    }
+    async bulkImport(rows) {
+        console.log(`[Import] Début de l'import de ${rows.length} ligne(s)`);
+        const norm = (v) => (v ?? '').toString().trim();
+        const rolePriority = {
+            COORDINATEUR: 1,
+            SUPERVISEUR: 2,
+            COMMERCIAL: 3,
+        };
+        const results = [];
+        const indexed = rows.map((r, idx) => ({ r, rowNum: idx + 2 }));
+        indexed.sort((a, b) => (rolePriority[norm(a.r.role).toUpperCase()] || 99) -
+            (rolePriority[norm(b.r.role).toUpperCase()] || 99));
+        for (const { r, rowNum } of indexed) {
+            const role = norm(r.role).toUpperCase();
+            const fullName = norm(r.fullName);
+            const phone = norm(r.phone);
+            const email = norm(r.email) || null;
+            try {
+                if (!fullName)
+                    throw new common_1.BadRequestException('Nom complet requis');
+                if (!phone)
+                    throw new common_1.BadRequestException('Téléphone requis');
+                const existingUser = await this.prisma.user.findUnique({
+                    where: { phone },
+                });
+                if (existingUser) {
+                    results.push({
+                        row: rowNum,
+                        status: 'error',
+                        role,
+                        fullName,
+                        message: `Utilisateur déjà existant (${existingUser.matricule})`,
+                    });
+                    console.log(`[Import] Ligne ${rowNum}: Utilisateur ${phone} déjà existant, ignoré`);
+                    continue;
+                }
+                const rawPassword = norm(r.password) || this.generateDefaultPassword();
+                console.log(`[Import] Ligne ${rowNum}: Password original="${r.password}", après norm="${rawPassword}", length=${rawPassword.length}`);
+                if (rawPassword.length < 8) {
+                    throw new common_1.BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
+                }
+                if (email) {
+                    const existingEmail = await this.prisma.user.findUnique({
+                        where: { email },
+                    });
+                    if (existingEmail) {
+                        throw new common_1.ConflictException(`Email ${email} déjà utilisé par ${existingEmail.matricule}`);
+                    }
+                }
+                const hashedPassword = await bcrypt.hash(rawPassword, 12);
+                if (role === 'COORDINATEUR') {
+                    const zoneName = norm(r.zone);
+                    if (!zoneName) {
+                        throw new common_1.BadRequestException('Zone requise pour un coordinateur');
+                    }
+                    const matricule = await this.generateMatricule(client_1.Role.COORDINATEUR);
+                    const user = await this.prisma.user.create({
+                        data: {
+                            matricule,
+                            fullName,
+                            email,
+                            phone,
+                            password: hashedPassword,
+                            role: client_1.Role.COORDINATEUR,
+                            status: client_1.AgentStatus.ACTIF,
+                            isActive: true,
+                        },
+                    });
+                    let zone = await this.prisma.zone.findUnique({
+                        where: { name: zoneName },
+                    });
+                    if (!zone) {
+                        zone = await this.prisma.zone.create({
+                            data: { name: zoneName, coordinatorId: user.id },
+                        });
+                    }
+                    else if (!zone.coordinatorId) {
+                        await this.prisma.zone.update({
+                            where: { id: zone.id },
+                            data: { coordinatorId: user.id },
+                        });
+                    }
+                    else {
+                        throw new common_1.ConflictException(`La zone "${zoneName}" a déjà un coordinateur`);
+                    }
+                    await this.prisma.user.update({
+                        where: { id: user.id },
+                        data: { zoneId: zone.id },
+                    });
+                    results.push({
+                        row: rowNum,
+                        status: 'created',
+                        role,
+                        fullName,
+                        matricule,
+                    });
+                    console.log(`[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} créé (${matricule}) - Zone: ${zoneName}`);
+                }
+                else if (role === 'SUPERVISEUR') {
+                    const zoneName = norm(r.zone);
+                    const secteurName = norm(r.secteur);
+                    if (!zoneName) {
+                        throw new common_1.BadRequestException('Zone requise pour un superviseur');
+                    }
+                    if (!secteurName) {
+                        throw new common_1.BadRequestException('Secteur requis pour un superviseur');
+                    }
+                    const zone = await this.prisma.zone.findUnique({
+                        where: { name: zoneName },
+                    });
+                    if (!zone) {
+                        throw new common_1.NotFoundException(`Zone "${zoneName}" introuvable (importez d'abord le coordinateur)`);
+                    }
+                    const matricule = await this.generateMatricule(client_1.Role.SUPERVISEUR);
+                    const user = await this.prisma.user.create({
+                        data: {
+                            matricule,
+                            fullName,
+                            email,
+                            phone,
+                            password: hashedPassword,
+                            role: client_1.Role.SUPERVISEUR,
+                            status: client_1.AgentStatus.ACTIF,
+                            isActive: true,
+                            zoneId: zone.id,
+                        },
+                    });
+                    let secteur = await this.prisma.secteur.findFirst({
+                        where: { name: secteurName, zoneId: zone.id },
+                    });
+                    if (!secteur) {
+                        secteur = await this.prisma.secteur.create({
+                            data: {
+                                name: secteurName,
+                                zoneId: zone.id,
+                                supervisorId: user.id,
+                            },
+                        });
+                    }
+                    else if (!secteur.supervisorId) {
+                        await this.prisma.secteur.update({
+                            where: { id: secteur.id },
+                            data: { supervisorId: user.id },
+                        });
+                    }
+                    else {
+                        throw new common_1.ConflictException(`Le secteur "${secteurName}" a déjà un superviseur`);
+                    }
+                    await this.prisma.user.update({
+                        where: { id: user.id },
+                        data: { secteurId: secteur.id },
+                    });
+                    results.push({
+                        row: rowNum,
+                        status: 'created',
+                        role,
+                        fullName,
+                        matricule,
+                    });
+                    console.log(`[Import] Ligne ${rowNum}: SUPERVISEUR ${fullName} créé (${matricule}) - Zone: ${zoneName}, Secteur: ${secteurName}`);
+                }
+                else if (role === 'COMMERCIAL') {
+                    const supPhone = norm(r.supervisorPhone);
+                    if (!supPhone) {
+                        throw new common_1.BadRequestException('Téléphone du superviseur requis pour un commercial');
+                    }
+                    const supervisor = await this.prisma.user.findUnique({
+                        where: { phone: supPhone },
+                    });
+                    if (!supervisor || supervisor.role !== client_1.Role.SUPERVISEUR) {
+                        throw new common_1.NotFoundException(`Superviseur (${supPhone}) introuvable`);
+                    }
+                    if (!supervisor.secteurId) {
+                        throw new common_1.BadRequestException("Le superviseur n'a pas de secteur assigné");
+                    }
+                    const matricule = await this.generateMatricule(client_1.Role.COMMERCIAL);
+                    await this.prisma.user.create({
+                        data: {
+                            matricule,
+                            fullName,
+                            email,
+                            phone,
+                            password: hashedPassword,
+                            role: client_1.Role.COMMERCIAL,
+                            status: client_1.AgentStatus.ACTIF,
+                            isActive: true,
+                            supervisorId: supervisor.id,
+                            secteurId: supervisor.secteurId,
+                            zoneId: supervisor.zoneId,
+                        },
+                    });
+                    results.push({
+                        row: rowNum,
+                        status: 'created',
+                        role,
+                        fullName,
+                        matricule,
+                    });
+                    console.log(`[Import] Ligne ${rowNum}: COMMERCIAL ${fullName} créé (${matricule}) - Superviseur: ${supPhone}`);
+                }
+                else {
+                    throw new common_1.BadRequestException(`Rôle invalide: "${r.role}" (attendu: COORDINATEUR, SUPERVISEUR ou COMMERCIAL)`);
+                }
+            }
+            catch (e) {
+                results.push({
+                    row: rowNum,
+                    status: 'error',
+                    role,
+                    fullName,
+                    message: e instanceof Error ? e.message : 'Erreur inconnue',
+                });
+            }
+        }
+        results.sort((a, b) => a.row - b.row);
+        const created = results.filter((r) => r.status === 'created').length;
+        const failed = results.filter((r) => r.status === 'error').length;
+        console.log(`[Import] Terminé: ${created} créé(s), ${failed} échec(s) sur ${results.length} ligne(s)`);
+        return {
+            total: results.length,
+            created,
+            failed,
+            results,
+        };
+    }
+    generateDefaultPassword() {
+        return `K2l${Math.random().toString(36).slice(2, 8)}!`;
     }
     async getTeam(supervisorId) {
         const members = await this.prisma.user.findMany({

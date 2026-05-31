@@ -3,6 +3,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { BulkImportDto } from './dto/bulk-import.dto';
 export declare class UsersController {
     private usersService;
     constructor(usersService: UsersService);
@@ -16,6 +17,19 @@ export declare class UsersController {
         validatedCount: number;
         lastActivity: Date;
     }[]>;
+    bulkImport(dto: BulkImportDto): Promise<{
+        total: number;
+        created: number;
+        failed: number;
+        results: {
+            row: number;
+            status: "created" | "error";
+            role?: string;
+            fullName?: string;
+            matricule?: string;
+            message?: string;
+        }[];
+    }>;
     create(currentUser: Omit<User, 'password'>, dto: CreateUserDto): Promise<{
         id: string;
         isActive: boolean;
@@ -90,7 +104,7 @@ export declare class UsersController {
             totalPages: number;
         };
     }>;
-    findOne(id: string): Promise<{
+    findOne(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
@@ -129,7 +143,7 @@ export declare class UsersController {
             fullName: string;
         }[];
     }>;
-    update(id: string, dto: UpdateUserDto): Promise<{
+    update(currentUser: Omit<User, 'password'>, id: string, dto: UpdateUserDto): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
@@ -162,7 +176,7 @@ export declare class UsersController {
             fullName: string;
         } | null;
     }>;
-    deactivate(id: string): Promise<{
+    deactivate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
@@ -195,7 +209,7 @@ export declare class UsersController {
             fullName: string;
         } | null;
     }>;
-    activate(id: string): Promise<{
+    activate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         isActive: boolean;
         createdAt: Date;
@@ -261,8 +275,41 @@ export declare class UsersController {
             fullName: string;
         } | null;
     }>;
-    resetPassword(id: string): Promise<{
+    resetPassword(currentUser: Omit<User, 'password'>, id: string): Promise<{
         message: string;
         temporaryPassword: string;
+    }>;
+    removeFromTeam(currentUser: Omit<User, 'password'>, id: string): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        zone: {
+            id: string;
+            name: string;
+            coordinator: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
+        } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
+        secteur: {
+            id: string;
+            name: string;
+        } | null;
+        supervisor: {
+            id: string;
+            matricule: string;
+            fullName: string;
+        } | null;
     }>;
 }

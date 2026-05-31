@@ -63,6 +63,11 @@ let AuthService = class AuthService {
             where: {
                 OR: [{ phone: dto.identifiant }, { email: dto.identifiant }],
             },
+            include: {
+                zone: { select: { id: true, name: true } },
+                secteur: { select: { id: true, name: true } },
+                supervisor: { select: { id: true, fullName: true, matricule: true } },
+            },
         });
         if (!user) {
             throw new common_1.UnauthorizedException('Identifiants invalides');
@@ -84,7 +89,15 @@ let AuthService = class AuthService {
     async refresh(refreshToken) {
         const storedToken = await this.prisma.refreshToken.findUnique({
             where: { token: refreshToken },
-            include: { user: true },
+            include: {
+                user: {
+                    include: {
+                        zone: { select: { id: true, name: true } },
+                        secteur: { select: { id: true, name: true } },
+                        supervisor: { select: { id: true, fullName: true, matricule: true } },
+                    },
+                },
+            },
         });
         if (!storedToken || storedToken.revoked) {
             throw new common_1.UnauthorizedException('Refresh token invalide');
