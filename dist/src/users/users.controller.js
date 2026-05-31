@@ -60,6 +60,9 @@ let UsersController = class UsersController {
     removeFromTeam(currentUser, id) {
         return this.usersService.removeFromTeam(id, currentUser);
     }
+    testPassword(dto) {
+        return this.usersService.testPassword(dto.phone, dto.password);
+    }
 };
 exports.UsersController = UsersController;
 __decorate([
@@ -159,6 +162,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "removeFromTeam", null);
+__decorate([
+    (0, common_1.Post)('test-password'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "testPassword", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

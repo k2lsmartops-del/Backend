@@ -312,4 +312,35 @@ export declare class UsersController {
             fullName: string;
         } | null;
     }>;
+    testPassword(dto: {
+        phone: string;
+        password: string;
+    }): Promise<{
+        success: boolean;
+        error: string;
+        phone: string;
+        user?: undefined;
+        passwordTest?: undefined;
+        hashInfo?: undefined;
+    } | {
+        success: boolean;
+        user: {
+            matricule: string;
+            fullName: string;
+            role: import("@prisma/client").$Enums.Role;
+            status: import("@prisma/client").$Enums.AgentStatus;
+            isActive: boolean;
+        };
+        passwordTest: {
+            original: boolean;
+            originalLength: number;
+            originalBytes: number[];
+            variations: Record<string, boolean>;
+        };
+        hashInfo: {
+            stored: string;
+        };
+        error?: undefined;
+        phone?: undefined;
+    }>;
 }

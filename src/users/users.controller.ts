@@ -159,4 +159,15 @@ export class UsersController {
   ) {
     return this.usersService.removeFromTeam(id, currentUser);
   }
+
+  /**
+   * POST /users/test-password — DIAGNOSTIC TEMPORAIRE
+   * Teste si un mot de passe correspond à un utilisateur (par téléphone).
+   * À SUPPRIMER en production.
+   */
+  @Post('test-password')
+  @Roles(Role.ADMIN)
+  testPassword(@Body() dto: { phone: string; password: string }) {
+    return this.usersService.testPassword(dto.phone, dto.password);
+  }
 }

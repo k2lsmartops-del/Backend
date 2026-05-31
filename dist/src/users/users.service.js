@@ -723,6 +723,60 @@ let UsersService = class UsersService {
         }
         return matricule;
     }
+    async testPassword(phone, password) {
+        const user = await this.prisma.user.findFirst({
+            where: { phone },
+            select: {
+                id: true,
+                matricule: true,
+                fullName: true,
+                phone: true,
+                password: true,
+                isActive: true,
+                status: true,
+                role: true,
+            },
+        });
+        if (!user) {
+            return {
+                success: false,
+                error: 'Utilisateur non trouvé',
+                phone,
+            };
+        }
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        const variations = {};
+        const testVariants = [
+            { name: 'trim', value: password.trim() },
+            { name: 'no-spaces', value: password.replace(/\s+/g, '') },
+            { name: 'NFC', value: password.normalize('NFC') },
+            { name: 'NFD', value: password.normalize('NFD') },
+        ];
+        for (const variant of testVariants) {
+            if (variant.value !== password) {
+                variations[variant.name] = await bcrypt.compare(variant.value, user.password);
+            }
+        }
+        return {
+            success: isPasswordValid,
+            user: {
+                matricule: user.matricule,
+                fullName: user.fullName,
+                role: user.role,
+                status: user.status,
+                isActive: user.isActive,
+            },
+            passwordTest: {
+                original: isPasswordValid,
+                originalLength: password.length,
+                originalBytes: Array.from(password).map((c) => c.charCodeAt(0)),
+                variations,
+            },
+            hashInfo: {
+                stored: user.password.substring(0, 30) + '...',
+            },
+        };
+    }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([
