@@ -561,9 +561,11 @@ export class UsersService {
         }
 
         // Mot de passe : fourni ou généré par défaut
-        const rawPassword = norm(r.password) || this.generateDefaultPassword();
+        // IMPORTANT: Enlève TOUS les espaces (début, fin, et intérieurs) pour éviter les erreurs 401
+        let rawPassword = norm(r.password) || this.generateDefaultPassword();
+        rawPassword = rawPassword.replace(/\s+/g, ''); // Enlève tous les espaces
         console.log(
-          `[Import] Ligne ${rowNum}: Password original="${r.password}", après norm="${rawPassword}", length=${rawPassword.length}`,
+          `[Import] Ligne ${rowNum}: Password original="${r.password}", après norm+trim="${rawPassword}", length=${rawPassword.length}`,
         );
         if (rawPassword.length < 8) {
           throw new BadRequestException(
