@@ -38,6 +38,13 @@ export class AuthService {
    * Retourne les tokens et les infos utilisateur.
    */
   async login(dto: LoginDto): Promise<AuthResponse> {
+    // DEBUG: Log tentative de connexion
+    console.log('[LOGIN]', {
+      identifiant: dto.identifiant,
+      pwdBytes: Buffer.from(dto.password, 'utf8').toString('hex'),
+      pwdLen: dto.password.length,
+    });
+
     // Recherche l'utilisateur par phone OU email
     const user = await this.prisma.user.findFirst({
       where: {
@@ -48,6 +55,15 @@ export class AuthService {
         secteur: { select: { id: true, name: true } },
         supervisor: { select: { id: true, fullName: true, matricule: true } },
       },
+    });
+
+    // DEBUG: Log résultat recherche
+    console.log('[LOGIN]', {
+      identifiant: dto.identifiant,
+      userFound: !!user,
+      userPhone: user?.phone,
+      userMatricule: user?.matricule,
+      hashStored: user?.password?.substring(0, 30) + '...',
     });
 
     // Message générique pour ne pas révéler si c'est l'identifiant ou le mdp qui est faux
@@ -64,6 +80,15 @@ export class AuthService {
 
     // Vérifie le mot de passe
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    
+    // DEBUG: Log résultat comparaison
+    console.log('[LOGIN]', {
+      identifiant: dto.identifiant,
+      bcryptCompare: isPasswordValid,
+      pwdProvided: dto.password,
+      hashStored: user.password.substring(0, 30) + '...',
+    });
+
     if (!isPasswordValid) {
       throw new UnauthorizedException('Identifiants invalides');
     }

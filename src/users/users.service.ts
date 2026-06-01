@@ -561,12 +561,18 @@ export class UsersService {
         }
 
         // Mot de passe : fourni ou généré par défaut
-        // IMPORTANT: Enlève TOUS les espaces (début, fin, et intérieurs) pour éviter les erreurs 401
-        let rawPassword = norm(r.password) || this.generateDefaultPassword();
-        rawPassword = rawPassword.replace(/\s+/g, ''); // Enlève tous les espaces
-        console.log(
-          `[Import] Ligne ${rowNum}: Password original="${r.password}", après norm+trim="${rawPassword}", length=${rawPassword.length}`,
-        );
+        const rawPassword = norm(r.password) || this.generateDefaultPassword();
+        
+        // DEBUG: Log détaillé pour diagnostiquer 401
+        console.log('[IMPORT]', {
+          ligne: rowNum,
+          phone: phone,
+          pwdProvided: !!norm(r.password),
+          pwdOriginal: r.password,
+          pwdAfterNorm: rawPassword,
+          pwdBytes: Buffer.from(rawPassword, 'utf8').toString('hex'),
+          pwdLen: rawPassword.length,
+        });
         if (rawPassword.length < 8) {
           throw new BadRequestException(
             'Le mot de passe doit contenir au moins 8 caractères',

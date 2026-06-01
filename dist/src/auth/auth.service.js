@@ -59,6 +59,11 @@ let AuthService = class AuthService {
         this.configService = configService;
     }
     async login(dto) {
+        console.log('[LOGIN]', {
+            identifiant: dto.identifiant,
+            pwdBytes: Buffer.from(dto.password, 'utf8').toString('hex'),
+            pwdLen: dto.password.length,
+        });
         const user = await this.prisma.user.findFirst({
             where: {
                 OR: [{ phone: dto.identifiant }, { email: dto.identifiant }],
@@ -69,6 +74,13 @@ let AuthService = class AuthService {
                 supervisor: { select: { id: true, fullName: true, matricule: true } },
             },
         });
+        console.log('[LOGIN]', {
+            identifiant: dto.identifiant,
+            userFound: !!user,
+            userPhone: user?.phone,
+            userMatricule: user?.matricule,
+            hashStored: user?.password?.substring(0, 30) + '...',
+        });
         if (!user) {
             throw new common_1.UnauthorizedException('Identifiants invalides');
         }
@@ -76,6 +88,12 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('Compte désactivé. Contactez votre administrateur.');
         }
         const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+        console.log('[LOGIN]', {
+            identifiant: dto.identifiant,
+            bcryptCompare: isPasswordValid,
+            pwdProvided: dto.password,
+            hashStored: user.password.substring(0, 30) + '...',
+        });
         if (!isPasswordValid) {
             throw new common_1.UnauthorizedException('Identifiants invalides');
         }

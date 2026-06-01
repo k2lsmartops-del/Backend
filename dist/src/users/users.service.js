@@ -395,9 +395,16 @@ let UsersService = class UsersService {
                     console.log(`[Import] Ligne ${rowNum}: Utilisateur ${phone} déjà existant, ignoré`);
                     continue;
                 }
-                let rawPassword = norm(r.password) || this.generateDefaultPassword();
-                rawPassword = rawPassword.replace(/\s+/g, '');
-                console.log(`[Import] Ligne ${rowNum}: Password original="${r.password}", après norm+trim="${rawPassword}", length=${rawPassword.length}`);
+                const rawPassword = norm(r.password) || this.generateDefaultPassword();
+                console.log('[IMPORT]', {
+                    ligne: rowNum,
+                    phone: phone,
+                    pwdProvided: !!norm(r.password),
+                    pwdOriginal: r.password,
+                    pwdAfterNorm: rawPassword,
+                    pwdBytes: Buffer.from(rawPassword, 'utf8').toString('hex'),
+                    pwdLen: rawPassword.length,
+                });
                 if (rawPassword.length < 8) {
                     throw new common_1.BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
                 }
