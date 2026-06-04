@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubmissionsController = void 0;
 const common_1 = require("@nestjs/common");
+const throttler_1 = require("@nestjs/throttler");
 const client_1 = require("@prisma/client");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
@@ -77,6 +78,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "create", null);
 __decorate([
+    (0, throttler_1.Throttle)({ default: { limit: 200, ttl: 60000 } }),
     (0, common_1.Post)('sync'),
     (0, roles_decorator_1.Roles)(client_1.Role.COMMERCIAL),
     __param(0, (0, common_1.Body)()),
@@ -86,6 +88,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "sync", null);
 __decorate([
+    (0, throttler_1.Throttle)({ default: { limit: 200, ttl: 60000 } }),
     (0, common_1.Get)('stats'),
     (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -95,6 +98,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "getStats", null);
 __decorate([
+    (0, throttler_1.Throttle)({ default: { limit: 200, ttl: 60000 } }),
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),

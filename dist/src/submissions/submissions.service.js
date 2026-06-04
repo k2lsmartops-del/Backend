@@ -8,9 +8,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var SubmissionsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubmissionsService = void 0;
 const common_1 = require("@nestjs/common");
+const cache_manager_1 = require("@nestjs/cache-manager");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
 const SUBMISSION_SELECT = {
@@ -55,10 +60,13 @@ const SUBMISSION_SELECT = {
     photos: { select: { id: true, url: true, category: true } },
     zoneId: true,
 };
-let SubmissionsService = class SubmissionsService {
+let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
     prisma;
-    constructor(prisma) {
+    cache;
+    logger = new common_1.Logger(SubmissionsService_1.name);
+    constructor(prisma, cache) {
         this.prisma = prisma;
+        this.cache = cache;
     }
     async create(dto, user) {
         const existing = await this.prisma.submission.findUnique({
@@ -485,6 +493,13 @@ let SubmissionsService = class SubmissionsService {
         });
     }
     async getStats(user, zoneId) {
+        const cacheKey = `dashboard:stats:${user.role}:${user.id}:${zoneId || 'all'}`;
+        const cached = await this.cache.get(cacheKey);
+        if (cached) {
+            this.logger.debug(`KPIs servis depuis le cache (${cacheKey})`);
+            return cached;
+        }
+        this.logger.debug(`KPIs recalculés — COUNT en base (${cacheKey})`);
         let effectiveZoneId;
         if (user.role === client_1.Role.COORDINATEUR) {
             effectiveZoneId = user.zoneId || undefined;
@@ -525,7 +540,7 @@ let SubmissionsService = class SubmissionsService {
         const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
         const pendingL1 = submitted;
         const pendingL2 = supervisorApproved;
-        return {
+        const result = {
             total,
             byStatus: {
                 draft,
@@ -553,6 +568,8 @@ let SubmissionsService = class SubmissionsService {
                 level2: pendingL2,
             },
         };
+        await this.cache.set(cacheKey, result);
+        return result;
     }
     validateFieldsByType(dto) {
         if (dto.type === client_1.SubmissionType.PROSPECT) {
@@ -617,8 +634,9 @@ let SubmissionsService = class SubmissionsService {
     }
 };
 exports.SubmissionsService = SubmissionsService;
-exports.SubmissionsService = SubmissionsService = __decorate([
+exports.SubmissionsService = SubmissionsService = SubmissionsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __param(1, (0, common_1.Inject)(cache_manager_1.CACHE_MANAGER)),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService, Object])
 ], SubmissionsService);
 //# sourceMappingURL=submissions.service.js.map

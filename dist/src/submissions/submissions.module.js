@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SubmissionsModule = void 0;
 const common_1 = require("@nestjs/common");
+const cache_manager_1 = require("@nestjs/cache-manager");
 const submissions_controller_1 = require("./submissions.controller");
 const submissions_service_1 = require("./submissions.service");
 let SubmissionsModule = class SubmissionsModule {
@@ -15,6 +16,11 @@ let SubmissionsModule = class SubmissionsModule {
 exports.SubmissionsModule = SubmissionsModule;
 exports.SubmissionsModule = SubmissionsModule = __decorate([
     (0, common_1.Module)({
+        imports: [
+            cache_manager_1.CacheModule.register({
+                ttl: 300_000,
+            }),
+        ],
         controllers: [submissions_controller_1.SubmissionsController],
         providers: [submissions_service_1.SubmissionsService],
         exports: [submissions_service_1.SubmissionsService],

@@ -9,6 +9,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Role, User } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -54,6 +55,10 @@ export class SubmissionsController {
    * POST /submissions/sync — Synchronisation batch (offline → online).
    * Réservé au COMMERCIAL.
    */
+  // 200/min : la sync offline de la PWA peut envoyer plusieurs lots d'affilée
+  // au retour de connexion (rattrapage). Limite élargie pour ne pas bloquer
+  // un commercial qui resynchronise une journée de terrain.
+  @Throttle({ default: { limit: 200, ttl: 60000 } })
   @Post('sync')
   @Roles(Role.COMMERCIAL)
   sync(
@@ -67,6 +72,9 @@ export class SubmissionsController {
    * GET /submissions/stats — Statistiques pour le dashboard.
    * Filtrées automatiquement selon le rôle de l'utilisateur.
    */
+  // 200/min : le dashboard peut rafraîchir les KPIs en polling. Réponse
+  // servie depuis le cache mémoire dans la majorité des cas (TTL 5 min).
+  @Throttle({ default: { limit: 200, ttl: 60000 } })
   @Get('stats')
   @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
   getStats(
@@ -80,6 +88,9 @@ export class SubmissionsController {
    * GET /submissions — Liste paginée des soumissions.
    * Filtrée automatiquement selon le rôle de l'utilisateur.
    */
+  // 200/min : liste consultée fréquemment (polling possible côté frontend,
+  // pagination, rafraîchissement après validation).
+  @Throttle({ default: { limit: 200, ttl: 60000 } })
   @Get()
   findAll(
     @Query() query: QuerySubmissionsDto,

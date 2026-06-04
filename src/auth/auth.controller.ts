@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { User } from '@prisma/client';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
@@ -25,6 +26,9 @@ export class AuthController {
    * POST /auth/login — Connexion utilisateur.
    * Route publique (pas besoin de token).
    */
+  // Limite serrée à 10/min : empêche le brute force sur les mots de passe
+  // sans gêner un humain (qui se trompe au plus quelques fois).
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -36,6 +40,8 @@ export class AuthController {
    * POST /auth/refresh — Rafraîchit les tokens.
    * Route publique (le refresh token est dans le body).
    */
+  // Limite serrée à 10/min : même protection que login contre l'abus.
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -58,6 +64,10 @@ export class AuthController {
    * GET /auth/me — Retourne les infos de l'utilisateur connecté.
    * Route authentifiée.
    */
+  // Limite élargie à 200/min : /auth/me est appelé très fréquemment par le
+  // frontend (vérification de session à chaque navigation/montage). 60/min
+  // serait trop juste pour un usage légitime intensif.
+  @Throttle({ default: { limit: 200, ttl: 60000 } })
   @Get('me')
   getMe(@CurrentUser() user: Omit<User, 'password'>) {
     return user;

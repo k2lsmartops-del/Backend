@@ -1,9 +1,13 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import {
   Role,
   SubmissionStatus,
@@ -68,12 +72,37 @@ const SUBMISSION_SELECT = {
 };
 
 /**
+ * Forme des KPIs agrégés du dashboard (valeur mise en cache).
+ */
+export interface StatsResult {
+  total: number;
+  byStatus: {
+    draft: number;
+    submitted: number;
+    supervisorApproved: number;
+    validated: number;
+    rejectedL1: number;
+    rejectedL2: number;
+  };
+  byType: { prospects: number; marchands: number };
+  today: { total: number; validated: number };
+  week: { total: number; validated: number };
+  validationRate: number;
+  pending: { level1: number; level2: number };
+}
+
+/**
  * Service de gestion des soumissions terrain.
  * Gère création, soumission, listing, validation N1/N2, rejet.
  */
 @Injectable()
 export class SubmissionsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(SubmissionsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
+  ) {}
 
   /**
    * Crée une soumission (brouillon ou directement soumise).
@@ -697,6 +726,20 @@ export class SubmissionsService {
     user: Omit<User, 'password'>,
     zoneId?: string,
   ) {
+    // ── Cache des KPIs ──
+    // Clé UNIQUE par contexte : le résultat dépend du rôle (filtre de zone
+    // différent), de l'utilisateur, et de la zone éventuellement filtrée.
+    // Deux admins sur des zones différentes ne doivent pas partager la clé.
+    const cacheKey = `dashboard:stats:${user.role}:${user.id}:${zoneId || 'all'}`;
+
+    // 1) Si présent en cache (TTL 5 min non expiré) → on évite les ~13 COUNT.
+    const cached = await this.cache.get<StatsResult>(cacheKey);
+    if (cached) {
+      this.logger.debug(`KPIs servis depuis le cache (${cacheKey})`);
+      return cached;
+    }
+    this.logger.debug(`KPIs recalculés — COUNT en base (${cacheKey})`);
+
     // Déterminer le filtre de zone
     let effectiveZoneId: string | undefined;
     if (user.role === Role.COORDINATEUR) {
@@ -759,7 +802,7 @@ export class SubmissionsService {
     const pendingL1 = submitted;
     const pendingL2 = supervisorApproved;
 
-    return {
+    const result: StatsResult = {
       total,
       byStatus: {
         draft,
@@ -787,6 +830,13 @@ export class SubmissionsService {
         level2: pendingL2,
       },
     };
+
+    // 2) Mise en cache pour 5 min (TTL du module). Le prochain appel dans la
+    // fenêtre lira ce résultat sans relancer les COUNT. Pas d'invalidation
+    // manuelle : le TTL gère la fraîcheur.
+    await this.cache.set(cacheKey, result);
+
+    return result;
   }
 
   // ──────────────────────────────────────────────

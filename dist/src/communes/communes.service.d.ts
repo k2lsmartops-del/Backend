@@ -31,8 +31,8 @@ export declare class CommunesService {
             id: string;
             name: string;
             createdAt: Date;
-            communeId: string;
             secteurId: string | null;
+            communeId: string;
         })[];
     } & {
         id: string;
