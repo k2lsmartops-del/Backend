@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -24,6 +25,18 @@ import { validate } from './config/env.validation';
       load: [configuration],
       validate,
     }),
+    // ── Rate limiting global ──
+    // 60 requêtes/min par IP. Un commercial fait ~25 requêtes par JOUR, donc
+    // 60/min est très large pour un usage humain normal mais coupe net une
+    // boucle de retry buggée (useEffect emballé, retry mal configuré) qui
+    // pourrait saturer l'instance Render. Les limites par-route sont ajustées
+    // via @Throttle() (auth serré, endpoints à fort polling élargis).
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // fenêtre glissante de 60 s
+        limit: 60, // 60 requêtes max sur la fenêtre
+      },
+    ]),
     // Module Prisma (accès base de données)
     PrismaModule,
     // Module d'authentification
@@ -42,6 +55,13 @@ import { validate } from './config/env.validation';
   controllers: [AppController],
   providers: [
     AppService,
+    // ThrottlerGuard en PREMIER guard global : le rate limiting s'applique
+    // avant l'authentification, donc protège aussi les routes @Public()
+    // (login/refresh) contre le brute force.
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     // JwtAuthGuard appliqué globalement — toutes les routes exigent un token par défaut
     {
       provide: APP_GUARD,
