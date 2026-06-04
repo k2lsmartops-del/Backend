@@ -41,7 +41,9 @@ async function testLogin(phone, password) {
     console.log(`Phone: "${phone}"`);
     console.log(`Password fourni: "${password}"`);
     console.log(`Length password: ${password.length}`);
-    console.log(`Password bytes: [${Array.from(password).map(c => c.charCodeAt(0)).join(', ')}]`);
+    console.log(`Password bytes: [${Array.from(password)
+        .map((c) => c.charCodeAt(0))
+        .join(', ')}]`);
     try {
         const user = await prisma.user.findFirst({
             where: { phone },

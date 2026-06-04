@@ -21,6 +21,8 @@ class CreateSubmissionDto {
     longitude;
     gpsAccuracy;
     gpsCapturedAt;
+    communeId;
+    quartierId;
     commune;
     quartier;
     addressNote;
@@ -74,8 +76,18 @@ __decorate([
     __metadata("design:type", String)
 ], CreateSubmissionDto.prototype, "gpsCapturedAt", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsNotEmpty)({ message: 'La commune est requise' }),
+    __metadata("design:type", String)
+], CreateSubmissionDto.prototype, "communeId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateSubmissionDto.prototype, "quartierId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateSubmissionDto.prototype, "commune", void 0);
 __decorate([

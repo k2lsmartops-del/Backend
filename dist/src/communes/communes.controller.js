@@ -16,11 +16,15 @@ exports.CommunesController = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
+const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
 const communes_service_1 = require("./communes.service");
 let CommunesController = class CommunesController {
     communesService;
     constructor(communesService) {
         this.communesService = communesService;
+    }
+    findMyZone(user) {
+        return this.communesService.findByUserZone(user);
     }
     findAll() {
         return this.communesService.findAll();
@@ -30,6 +34,14 @@ let CommunesController = class CommunesController {
     }
 };
 exports.CommunesController = CommunesController;
+__decorate([
+    (0, common_1.Get)('my-zone'),
+    (0, roles_decorator_1.Roles)(client_1.Role.COMMERCIAL, client_1.Role.SUPERVISEUR, client_1.Role.COORDINATEUR, client_1.Role.ADMIN),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CommunesController.prototype, "findMyZone", null);
 __decorate([
     (0, common_1.Get)(),
     (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR),

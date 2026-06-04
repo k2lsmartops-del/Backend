@@ -89,6 +89,30 @@ let SubmissionsService = class SubmissionsService {
                 _duplicateWarning = `Prospect avec ce téléphone déjà enregistré (soumission ${duplicate.id})`;
             }
         }
+        let communeId = null;
+        let communeName = dto.commune || '';
+        let quartierId = null;
+        let quartierName = dto.quartier || null;
+        if (dto.communeId) {
+            const commune = await this.prisma.commune.findUnique({
+                where: { id: dto.communeId },
+                select: { id: true, name: true },
+            });
+            if (commune) {
+                communeId = commune.id;
+                communeName = commune.name;
+            }
+        }
+        if (dto.quartierId) {
+            const quartier = await this.prisma.quartier.findUnique({
+                where: { id: dto.quartierId },
+                select: { id: true, name: true },
+            });
+            if (quartier) {
+                quartierId = quartier.id;
+                quartierName = quartier.name;
+            }
+        }
         const submission = await this.prisma.submission.create({
             data: {
                 type: dto.type,
@@ -96,8 +120,11 @@ let SubmissionsService = class SubmissionsService {
                 status: targetStatus,
                 commercialId: user.id,
                 zoneId: user.zoneId || null,
-                commune: dto.commune,
-                quartier: dto.quartier || null,
+                secteurId: user.secteurId || null,
+                communeId: communeId,
+                quartierId: quartierId,
+                commune: communeName,
+                quartier: quartierName,
                 addressNote: dto.addressNote || null,
                 latitude: dto.latitude || null,
                 longitude: dto.longitude || null,

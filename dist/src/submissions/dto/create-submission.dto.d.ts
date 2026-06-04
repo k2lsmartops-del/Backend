@@ -7,7 +7,9 @@ export declare class CreateSubmissionDto {
     longitude?: number;
     gpsAccuracy?: number;
     gpsCapturedAt?: string;
-    commune: string;
+    communeId?: string;
+    quartierId?: string;
+    commune?: string;
     quartier?: string;
     addressNote?: string;
     prospectFullName?: string;

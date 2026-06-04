@@ -20,10 +20,11 @@ export declare class UsersController {
     bulkImport(dto: BulkImportDto): Promise<{
         total: number;
         created: number;
+        updated: number;
         failed: number;
         results: {
             row: number;
-            status: "created" | "error";
+            status: "created" | "updated" | "error";
             role?: string;
             fullName?: string;
             matricule?: string;
@@ -32,12 +33,6 @@ export declare class UsersController {
     }>;
     create(currentUser: Omit<User, 'password'>, dto: CreateUserDto): Promise<{
         id: string;
-        matricule: string;
-        fullName: string;
-        email: string | null;
-        phone: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -50,6 +45,15 @@ export declare class UsersController {
                 fullName: string;
             } | null;
         } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
         secteur: {
             id: string;
             name: string;
@@ -59,19 +63,10 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
-        zoneId: string | null;
-        secteurId: string | null;
-        supervisorId: string | null;
     }>;
     findAll(user: Omit<User, 'password'>, query: QueryUsersDto): Promise<{
         data: {
             id: string;
-            matricule: string;
-            fullName: string;
-            email: string | null;
-            phone: string;
-            role: import("@prisma/client").$Enums.Role;
-            status: import("@prisma/client").$Enums.AgentStatus;
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
@@ -84,6 +79,15 @@ export declare class UsersController {
                     fullName: string;
                 } | null;
             } | null;
+            matricule: string;
+            email: string | null;
+            phone: string;
+            fullName: string;
+            role: import("@prisma/client").$Enums.Role;
+            status: import("@prisma/client").$Enums.AgentStatus;
+            zoneId: string | null;
+            secteurId: string | null;
+            supervisorId: string | null;
             secteur: {
                 id: string;
                 name: string;
@@ -93,9 +97,6 @@ export declare class UsersController {
                 matricule: string;
                 fullName: string;
             } | null;
-            zoneId: string | null;
-            secteurId: string | null;
-            supervisorId: string | null;
         }[];
         meta: {
             total: number;
@@ -106,12 +107,6 @@ export declare class UsersController {
     }>;
     findOne(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        matricule: string;
-        fullName: string;
-        email: string | null;
-        phone: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -124,6 +119,15 @@ export declare class UsersController {
                 fullName: string;
             } | null;
         } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
         secteur: {
             id: string;
             name: string;
@@ -135,22 +139,13 @@ export declare class UsersController {
         } | null;
         commercials: {
             id: string;
+            isActive: boolean;
             matricule: string;
             fullName: string;
-            isActive: boolean;
         }[];
-        zoneId: string | null;
-        secteurId: string | null;
-        supervisorId: string | null;
     }>;
     update(currentUser: Omit<User, 'password'>, id: string, dto: UpdateUserDto): Promise<{
         id: string;
-        matricule: string;
-        fullName: string;
-        email: string | null;
-        phone: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -163,6 +158,15 @@ export declare class UsersController {
                 fullName: string;
             } | null;
         } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
         secteur: {
             id: string;
             name: string;
@@ -172,18 +176,9 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
-        zoneId: string | null;
-        secteurId: string | null;
-        supervisorId: string | null;
     }>;
     deactivate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        matricule: string;
-        fullName: string;
-        email: string | null;
-        phone: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -196,6 +191,15 @@ export declare class UsersController {
                 fullName: string;
             } | null;
         } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
         secteur: {
             id: string;
             name: string;
@@ -205,18 +209,9 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
-        zoneId: string | null;
-        secteurId: string | null;
-        supervisorId: string | null;
     }>;
     activate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        matricule: string;
-        fullName: string;
-        email: string | null;
-        phone: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -229,6 +224,15 @@ export declare class UsersController {
                 fullName: string;
             } | null;
         } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
         secteur: {
             id: string;
             name: string;
@@ -238,18 +242,9 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
-        zoneId: string | null;
-        secteurId: string | null;
-        supervisorId: string | null;
     }>;
     suspend(id: string): Promise<{
         id: string;
-        matricule: string;
-        fullName: string;
-        email: string | null;
-        phone: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -262,6 +257,15 @@ export declare class UsersController {
                 fullName: string;
             } | null;
         } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
         secteur: {
             id: string;
             name: string;
@@ -271,9 +275,6 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
-        zoneId: string | null;
-        secteurId: string | null;
-        supervisorId: string | null;
     }>;
     resetPassword(currentUser: Omit<User, 'password'>, id: string): Promise<{
         message: string;
@@ -281,12 +282,6 @@ export declare class UsersController {
     }>;
     removeFromTeam(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        matricule: string;
-        fullName: string;
-        email: string | null;
-        phone: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
@@ -299,6 +294,15 @@ export declare class UsersController {
                 fullName: string;
             } | null;
         } | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        fullName: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        zoneId: string | null;
+        secteurId: string | null;
+        supervisorId: string | null;
         secteur: {
             id: string;
             name: string;
@@ -308,9 +312,6 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
-        zoneId: string | null;
-        secteurId: string | null;
-        supervisorId: string | null;
     }>;
     testPassword(dto: {
         phone: string;
@@ -342,5 +343,14 @@ export declare class UsersController {
         };
         error?: undefined;
         phone?: undefined;
+    }>;
+    debugPasswords(): Promise<{
+        summary: {
+            total: number;
+            found: number;
+            matching: number;
+            crossMatchDetected: boolean;
+        };
+        details: any[];
     }>;
 }

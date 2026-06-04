@@ -11,6 +11,7 @@ import {
 import { Role, User } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -169,5 +170,17 @@ export class UsersController {
   @Roles(Role.ADMIN)
   testPassword(@Body() dto: { phone: string; password: string }) {
     return this.usersService.testPassword(dto.phone, dto.password);
+  }
+
+  /**
+   * GET /users/debug-passwords — DIAGNOSTIC TEMPORAIRE
+   * Vérifie tous les utilisateurs importés et teste les mots de passe croisés.
+   * À SUPPRIMER en production.
+   * ATTENTION: Endpoint PUBLIC pour debug
+   */
+  @Public()
+  @Get('debug-passwords')
+  debugPasswords() {
+    return this.usersService.debugPasswords();
   }
 }

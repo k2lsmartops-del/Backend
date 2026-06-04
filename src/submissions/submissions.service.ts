@@ -120,6 +120,36 @@ export class SubmissionsService {
       }
     }
 
+    // ── Résolution commune/quartier (ID ou texte libre) ──
+    let communeId: string | null = null;
+    let communeName: string = dto.commune || '';
+    let quartierId: string | null = null;
+    let quartierName: string | null = dto.quartier || null;
+
+    // Si communeId fourni → récupérer le nom depuis la DB
+    if (dto.communeId) {
+      const commune = await this.prisma.commune.findUnique({
+        where: { id: dto.communeId },
+        select: { id: true, name: true },
+      });
+      if (commune) {
+        communeId = commune.id;
+        communeName = commune.name;
+      }
+    }
+
+    // Si quartierId fourni → récupérer le nom depuis la DB
+    if (dto.quartierId) {
+      const quartier = await this.prisma.quartier.findUnique({
+        where: { id: dto.quartierId },
+        select: { id: true, name: true },
+      });
+      if (quartier) {
+        quartierId = quartier.id;
+        quartierName = quartier.name;
+      }
+    }
+
     const submission = await this.prisma.submission.create({
       data: {
         type: dto.type,
@@ -127,8 +157,11 @@ export class SubmissionsService {
         status: targetStatus,
         commercialId: user.id,
         zoneId: user.zoneId || null,
-        commune: dto.commune,
-        quartier: dto.quartier || null,
+        secteurId: user.secteurId || null,
+        communeId: communeId,
+        quartierId: quartierId,
+        commune: communeName,
+        quartier: quartierName,
         addressNote: dto.addressNote || null,
         latitude: dto.latitude || null,
         longitude: dto.longitude || null,

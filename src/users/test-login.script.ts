@@ -15,7 +15,11 @@ async function testLogin(phone: string, password: string) {
   console.log(`Phone: "${phone}"`);
   console.log(`Password fourni: "${password}"`);
   console.log(`Length password: ${password.length}`);
-  console.log(`Password bytes: [${Array.from(password).map(c => c.charCodeAt(0)).join(', ')}]`);
+  console.log(
+    `Password bytes: [${Array.from(password)
+      .map((c) => c.charCodeAt(0))
+      .join(', ')}]`,
+  );
 
   try {
     // 1. Recherche l'utilisateur

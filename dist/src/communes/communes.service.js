@@ -38,6 +38,37 @@ let CommunesService = class CommunesService {
             },
         });
     }
+    async findByUserZone(user) {
+        if (!user.zoneId) {
+            return { communes: [], message: 'Aucune zone assignée' };
+        }
+        const communes = await this.prisma.commune.findMany({
+            where: { zoneId: user.zoneId },
+            orderBy: { name: 'asc' },
+            include: {
+                quartiers: {
+                    orderBy: { name: 'asc' },
+                    select: {
+                        id: true,
+                        name: true,
+                        secteurId: true,
+                    },
+                },
+            },
+        });
+        const zone = await this.prisma.zone.findUnique({
+            where: { id: user.zoneId },
+            select: { id: true, name: true },
+        });
+        return {
+            zone,
+            communes: communes.map((c) => ({
+                id: c.id,
+                name: c.name,
+                quartiers: c.quartiers,
+            })),
+        };
+    }
 };
 exports.CommunesService = CommunesService;
 exports.CommunesService = CommunesService = __decorate([

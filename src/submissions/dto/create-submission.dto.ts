@@ -49,9 +49,19 @@ export class CreateSubmissionDto {
   @IsString()
   gpsCapturedAt?: string;
 
+  // ── Localisation par ID (sélection depuis dropdown) ──
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'La commune est requise' })
-  commune: string;
+  communeId?: string;
+
+  @IsOptional()
+  @IsString()
+  quartierId?: string;
+
+  // ── Localisation texte libre (saisie manuelle si hors zone) ──
+  @IsOptional()
+  @IsString()
+  commune?: string;
 
   @IsOptional()
   @IsString()

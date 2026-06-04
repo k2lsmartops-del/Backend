@@ -514,7 +514,7 @@ export class UsersService {
 
     type RowResult = {
       row: number;
-      status: 'created' | 'error';
+      status: 'created' | 'updated' | 'error';
       role?: string;
       fullName?: string;
       matricule?: string;
@@ -542,26 +542,13 @@ export class UsersService {
         if (!fullName) throw new BadRequestException('Nom complet requis');
         if (!phone) throw new BadRequestException('Téléphone requis');
 
+        // Mot de passe : fourni ou généré par défaut (calculé AVANT la vérification d'existence)
+        const rawPassword = norm(r.password) || this.generateDefaultPassword();
+        
         // Vérifie si l'utilisateur existe déjà (par téléphone)
         const existingUser = await this.prisma.user.findUnique({
           where: { phone },
         });
-        if (existingUser) {
-          results.push({
-            row: rowNum,
-            status: 'error',
-            role,
-            fullName,
-            message: `Utilisateur déjà existant (${existingUser.matricule})`,
-          });
-          console.log(
-            `[Import] Ligne ${rowNum}: Utilisateur ${phone} déjà existant, ignoré`,
-          );
-          continue;
-        }
-
-        // Mot de passe : fourni ou généré par défaut
-        const rawPassword = norm(r.password) || this.generateDefaultPassword();
         
         // DEBUG: Log détaillé pour diagnostiquer 401
         console.log('[IMPORT]', {
@@ -601,19 +588,42 @@ export class UsersService {
             );
           }
 
-          const matricule = await this.generateMatricule(Role.COORDINATEUR);
-          const user = await this.prisma.user.create({
-            data: {
-              matricule,
-              fullName,
-              email,
-              phone,
-              password: hashedPassword,
-              role: Role.COORDINATEUR,
-              status: AgentStatus.ACTIF,
-              isActive: true,
-            },
-          });
+          let user: any;
+          let matricule: string;
+          let status: 'created' | 'updated';
+
+          if (existingUser) {
+            // UPDATE utilisateur existant
+            matricule = existingUser.matricule;
+            user = await this.prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                fullName,
+                email,
+                password: hashedPassword,
+                role: Role.COORDINATEUR,
+                status: AgentStatus.ACTIF,
+                isActive: true,
+              },
+            });
+            status = 'updated';
+          } else {
+            // CREATE nouvel utilisateur
+            matricule = await this.generateMatricule(Role.COORDINATEUR);
+            user = await this.prisma.user.create({
+              data: {
+                matricule,
+                fullName,
+                email,
+                phone,
+                password: hashedPassword,
+                role: Role.COORDINATEUR,
+                status: AgentStatus.ACTIF,
+                isActive: true,
+              },
+            });
+            status = 'created';
+          }
 
           // Crée ou rattache la zone
           let zone = await this.prisma.zone.findUnique({
@@ -623,11 +633,14 @@ export class UsersService {
             zone = await this.prisma.zone.create({
               data: { name: zoneName, coordinatorId: user.id },
             });
-          } else if (!zone.coordinatorId) {
+          } else if (!zone.coordinatorId || zone.coordinatorId === user.id) {
             await this.prisma.zone.update({
               where: { id: zone.id },
               data: { coordinatorId: user.id },
             });
+          } else if (existingUser && zone.coordinatorId === existingUser.id) {
+            // L'utilisateur existant est déjà le coordinateur de cette zone
+            // Pas besoin de modifier
           } else {
             throw new ConflictException(
               `La zone "${zoneName}" a déjà un coordinateur`,
@@ -641,13 +654,13 @@ export class UsersService {
 
           results.push({
             row: rowNum,
-            status: 'created',
+            status,
             role,
             fullName,
             matricule,
           });
           console.log(
-            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} créé (${matricule}) - Zone: ${zoneName}`,
+            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Zone: ${zoneName}`,
           );
         } else if (role === 'SUPERVISEUR') {
           const zoneName = norm(r.zone);
@@ -670,20 +683,44 @@ export class UsersService {
             );
           }
 
-          const matricule = await this.generateMatricule(Role.SUPERVISEUR);
-          const user = await this.prisma.user.create({
-            data: {
-              matricule,
-              fullName,
-              email,
-              phone,
-              password: hashedPassword,
-              role: Role.SUPERVISEUR,
-              status: AgentStatus.ACTIF,
-              isActive: true,
-              zoneId: zone.id,
-            },
-          });
+          let user: any;
+          let matricule: string;
+          let status: 'created' | 'updated';
+
+          if (existingUser) {
+            // UPDATE utilisateur existant
+            matricule = existingUser.matricule;
+            user = await this.prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                fullName,
+                email,
+                password: hashedPassword,
+                role: Role.SUPERVISEUR,
+                status: AgentStatus.ACTIF,
+                isActive: true,
+                zoneId: zone.id,
+              },
+            });
+            status = 'updated';
+          } else {
+            // CREATE nouvel utilisateur
+            matricule = await this.generateMatricule(Role.SUPERVISEUR);
+            user = await this.prisma.user.create({
+              data: {
+                matricule,
+                fullName,
+                email,
+                phone,
+                password: hashedPassword,
+                role: Role.SUPERVISEUR,
+                status: AgentStatus.ACTIF,
+                isActive: true,
+                zoneId: zone.id,
+              },
+            });
+            status = 'created';
+          }
 
           // Crée ou rattache le secteur
           let secteur = await this.prisma.secteur.findFirst({
@@ -697,11 +734,14 @@ export class UsersService {
                 supervisorId: user.id,
               },
             });
-          } else if (!secteur.supervisorId) {
+          } else if (!secteur.supervisorId || secteur.supervisorId === user.id) {
             await this.prisma.secteur.update({
               where: { id: secteur.id },
               data: { supervisorId: user.id },
             });
+          } else if (existingUser && secteur.supervisorId === existingUser.id) {
+            // L'utilisateur existant est déjà le superviseur de ce secteur
+            // Pas besoin de modifier
           } else {
             throw new ConflictException(
               `Le secteur "${secteurName}" a déjà un superviseur`,
@@ -715,13 +755,13 @@ export class UsersService {
 
           results.push({
             row: rowNum,
-            status: 'created',
+            status,
             role,
             fullName,
             matricule,
           });
           console.log(
-            `[Import] Ligne ${rowNum}: SUPERVISEUR ${fullName} créé (${matricule}) - Zone: ${zoneName}, Secteur: ${secteurName}`,
+            `[Import] Ligne ${rowNum}: SUPERVISEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Zone: ${zoneName}, Secteur: ${secteurName}`,
           );
         } else if (role === 'COMMERCIAL') {
           const supPhone = norm(r.supervisorPhone);
@@ -745,32 +785,57 @@ export class UsersService {
             );
           }
 
-          const matricule = await this.generateMatricule(Role.COMMERCIAL);
-          await this.prisma.user.create({
-            data: {
-              matricule,
-              fullName,
-              email,
-              phone,
-              password: hashedPassword,
-              role: Role.COMMERCIAL,
-              status: AgentStatus.ACTIF,
-              isActive: true,
-              supervisorId: supervisor.id,
-              secteurId: supervisor.secteurId,
-              zoneId: supervisor.zoneId,
-            },
-          });
+          let matricule: string;
+          let status: 'created' | 'updated';
+
+          if (existingUser) {
+            // UPDATE utilisateur existant
+            matricule = existingUser.matricule;
+            await this.prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                fullName,
+                email,
+                password: hashedPassword,
+                role: Role.COMMERCIAL,
+                status: AgentStatus.ACTIF,
+                isActive: true,
+                supervisorId: supervisor.id,
+                secteurId: supervisor.secteurId,
+                zoneId: supervisor.zoneId,
+              },
+            });
+            status = 'updated';
+          } else {
+            // CREATE nouvel utilisateur
+            matricule = await this.generateMatricule(Role.COMMERCIAL);
+            await this.prisma.user.create({
+              data: {
+                matricule,
+                fullName,
+                email,
+                phone,
+                password: hashedPassword,
+                role: Role.COMMERCIAL,
+                status: AgentStatus.ACTIF,
+                isActive: true,
+                supervisorId: supervisor.id,
+                secteurId: supervisor.secteurId,
+                zoneId: supervisor.zoneId,
+              },
+            });
+            status = 'created';
+          }
 
           results.push({
             row: rowNum,
-            status: 'created',
+            status,
             role,
             fullName,
             matricule,
           });
           console.log(
-            `[Import] Ligne ${rowNum}: COMMERCIAL ${fullName} créé (${matricule}) - Superviseur: ${supPhone}`,
+            `[Import] Ligne ${rowNum}: COMMERCIAL ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Superviseur: ${supPhone}`,
           );
         } else {
           throw new BadRequestException(
@@ -792,15 +857,17 @@ export class UsersService {
     results.sort((a, b) => a.row - b.row);
 
     const created = results.filter((r) => r.status === 'created').length;
+    const updated = results.filter((r) => r.status === 'updated').length;
     const failed = results.filter((r) => r.status === 'error').length;
 
     console.log(
-      `[Import] Terminé: ${created} créé(s), ${failed} échec(s) sur ${results.length} ligne(s)`,
+      `[Import] Terminé: ${created} créé(s), ${updated} mis à jour, ${failed} échec(s) sur ${results.length} ligne(s)`,
     );
 
     return {
       total: results.length,
       created,
+      updated,
       failed,
       results,
     };
@@ -1024,6 +1091,105 @@ export class UsersService {
     }
 
     return matricule;
+  }
+
+  /**
+   * DIAGNOSTIC TEMPORAIRE : vérifie tous les utilisateurs importés.
+   * Teste les mots de passe croisés pour détecter un problème d'ordre.
+   * À SUPPRIMER en production.
+   */
+  async debugPasswords() {
+    const testCases = [
+      { phone: '0700000002', expectedPwd: 'Passw0rd2', name: 'Kouadio Kouassi' },
+      { phone: '0700000003', expectedPwd: 'Passw0rd3', name: 'Konan Koffi' },
+      { phone: '0700000004', expectedPwd: 'Passw0rd4', name: 'Yao Adjoua' },
+      {
+        phone: '0700000176',
+        expectedPwd: 'Passw0rd267',
+        name: 'Akoua Coulibaly',
+      },
+    ];
+
+    const results: any[] = [];
+
+    for (const test of testCases) {
+      const user = await this.prisma.user.findFirst({
+        where: { phone: test.phone },
+        select: {
+          id: true,
+          phone: true,
+          matricule: true,
+          fullName: true,
+          password: true,
+          isActive: true,
+          status: true,
+        },
+      });
+
+      if (!user) {
+        results.push({
+          phone: test.phone,
+          expectedName: test.name,
+          found: false,
+          error: 'Utilisateur non trouvé',
+        });
+        continue;
+      }
+
+      const isValid = await bcrypt.compare(test.expectedPwd, user.password);
+      const pwdBytes = Buffer.from(test.expectedPwd, 'utf8').toString('hex');
+
+      // Test croisé : ce hash correspond-il à un autre mot de passe ?
+      const crossMatches: any[] = [];
+      for (const other of testCases) {
+        if (other.phone !== test.phone) {
+          const crossMatch = await bcrypt.compare(
+            other.expectedPwd,
+            user.password,
+          );
+          if (crossMatch) {
+            crossMatches.push({
+              password: other.expectedPwd,
+              belongsTo: other.name,
+            });
+          }
+        }
+      }
+
+      results.push({
+        phone: test.phone,
+        expectedName: test.name,
+        found: true,
+        actualName: user.fullName,
+        matricule: user.matricule,
+        isActive: user.isActive,
+        status: user.status,
+        passwordTest: {
+          expected: test.expectedPwd,
+          expectedBytes: pwdBytes,
+          expectedLength: test.expectedPwd.length,
+          match: isValid,
+          hashPreview: user.password.substring(0, 30) + '...',
+        },
+        crossMatches:
+          crossMatches.length > 0
+            ? crossMatches
+            : 'Aucun autre mot de passe ne correspond',
+      });
+    }
+
+    return {
+      summary: {
+        total: testCases.length,
+        found: results.filter((r) => r.found).length,
+        matching: results.filter((r) => r.found && r.passwordTest?.match)
+          .length,
+        crossMatchDetected: results.some(
+          (r) => Array.isArray(r.crossMatches) && r.crossMatches.length > 0,
+        ),
+      },
+      details: results,
+    };
   }
 
   /**
