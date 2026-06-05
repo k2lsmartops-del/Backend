@@ -1,24 +1,56 @@
+import type { Cache } from 'cache-manager';
 import { User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { QuerySubmissionsDto } from './dto/query-submissions.dto';
+export interface StatsResult {
+    total: number;
+    byStatus: {
+        draft: number;
+        submitted: number;
+        supervisorApproved: number;
+        validated: number;
+        rejectedL1: number;
+        rejectedL2: number;
+    };
+    byType: {
+        prospects: number;
+        marchands: number;
+    };
+    today: {
+        total: number;
+        validated: number;
+    };
+    week: {
+        total: number;
+        validated: number;
+    };
+    validationRate: number;
+    pending: {
+        level1: number;
+        level2: number;
+    };
+}
 export declare class SubmissionsService {
     private prisma;
-    constructor(prisma: PrismaService);
+    private cache;
+    private readonly logger;
+    constructor(prisma: PrismaService, cache: Cache);
     create(dto: CreateSubmissionDto, user: Omit<User, 'password'>): Promise<{
         _idempotent: boolean;
         id: string;
-        clientUuid: string;
-        type: import("@prisma/client").$Enums.SubmissionType;
+        createdAt: Date;
+        updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
-        commercialId: string;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
+        type: import("@prisma/client").$Enums.SubmissionType;
+        commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -34,15 +66,14 @@ export declare class SubmissionsService {
         merchantPhone: string | null;
         merchantActivity: string | null;
         merchantRccm: string | null;
+        clientUuid: string;
         syncStatus: import("@prisma/client").$Enums.SyncStatus;
         createdOffline: boolean;
         level1At: Date | null;
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
-        createdAt: Date;
         submittedAt: Date | null;
-        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -59,24 +90,25 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     } | {
         _duplicateWarning: string | undefined;
         id: string;
-        clientUuid: string;
-        type: import("@prisma/client").$Enums.SubmissionType;
+        createdAt: Date;
+        updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
-        commercialId: string;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
+        type: import("@prisma/client").$Enums.SubmissionType;
+        commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -92,15 +124,14 @@ export declare class SubmissionsService {
         merchantPhone: string | null;
         merchantActivity: string | null;
         merchantRccm: string | null;
+        clientUuid: string;
         syncStatus: import("@prisma/client").$Enums.SyncStatus;
         createdOffline: boolean;
         level1At: Date | null;
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
-        createdAt: Date;
         submittedAt: Date | null;
-        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -117,8 +148,8 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -136,17 +167,18 @@ export declare class SubmissionsService {
     findAll(query: QuerySubmissionsDto, user: Omit<User, 'password'>): Promise<{
         data: {
             id: string;
-            clientUuid: string;
-            type: import("@prisma/client").$Enums.SubmissionType;
+            createdAt: Date;
+            updatedAt: Date;
             status: import("@prisma/client").$Enums.SubmissionStatus;
-            commercialId: string;
             zoneId: string | null;
+            commune: string;
+            quartier: string | null;
+            type: import("@prisma/client").$Enums.SubmissionType;
+            commercialId: string;
             latitude: number | null;
             longitude: number | null;
             gpsAccuracy: number | null;
             gpsCapturedAt: Date | null;
-            commune: string;
-            quartier: string | null;
             addressNote: string | null;
             prospectFullName: string | null;
             prospectPhone: string | null;
@@ -162,15 +194,14 @@ export declare class SubmissionsService {
             merchantPhone: string | null;
             merchantActivity: string | null;
             merchantRccm: string | null;
+            clientUuid: string;
             syncStatus: import("@prisma/client").$Enums.SyncStatus;
             createdOffline: boolean;
             level1At: Date | null;
             level1Comment: string | null;
             level2At: Date | null;
             level2Comment: string | null;
-            createdAt: Date;
             submittedAt: Date | null;
-            updatedAt: Date;
             commercial: {
                 id: string;
                 matricule: string;
@@ -187,8 +218,8 @@ export declare class SubmissionsService {
                 fullName: string;
             } | null;
             photos: {
-                id: string;
                 url: string;
+                id: string;
                 category: import("@prisma/client").$Enums.PhotoCategory | null;
             }[];
         }[];
@@ -201,61 +232,10 @@ export declare class SubmissionsService {
     }>;
     findOne(id: string, user: Omit<User, 'password'>): Promise<{
         id: string;
-        clientUuid: string;
-        type: import("@prisma/client").$Enums.SubmissionType;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
-        commercialId: string;
-        zoneId: string | null;
-        latitude: number | null;
-        longitude: number | null;
-        gpsAccuracy: number | null;
-        gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
-        addressNote: string | null;
-        prospectFullName: string | null;
-        prospectPhone: string | null;
-        prospectProfession: string | null;
-        prospectGender: string | null;
-        prospectAge: number | null;
-        appStatus: import("@prisma/client").$Enums.AppStatus | null;
-        phoneType: string | null;
-        bankAccount: string | null;
-        observations: string | null;
-        merchantName: string | null;
-        merchantOwner: string | null;
-        merchantPhone: string | null;
-        merchantActivity: string | null;
-        merchantRccm: string | null;
-        syncStatus: import("@prisma/client").$Enums.SyncStatus;
-        createdOffline: boolean;
-        level1At: Date | null;
-        level1Comment: string | null;
-        level2At: Date | null;
-        level2Comment: string | null;
         createdAt: Date;
-        submittedAt: Date | null;
         updatedAt: Date;
-        commercial: {
-            id: string;
-            matricule: string;
-            fullName: string;
-        };
-        level1Validator: {
-            id: string;
-            matricule: string;
-            fullName: string;
-        } | null;
-        level2Validator: {
-            id: string;
-            matricule: string;
-            fullName: string;
-        } | null;
-        photos: {
-            id: string;
-            url: string;
-            category: import("@prisma/client").$Enums.PhotoCategory | null;
-        }[];
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        zoneId: string | null;
         validationHistory: {
             id: string;
             createdAt: Date;
@@ -267,20 +247,14 @@ export declare class SubmissionsService {
                 fullName: string;
             };
         }[];
-    }>;
-    update(id: string, dto: import('./dto/update-submission.dto').UpdateSubmissionDto, user: Omit<User, 'password'>): Promise<{
-        id: string;
-        clientUuid: string;
+        commune: string;
+        quartier: string | null;
         type: import("@prisma/client").$Enums.SubmissionType;
-        status: import("@prisma/client").$Enums.SubmissionStatus;
         commercialId: string;
-        zoneId: string | null;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -296,15 +270,14 @@ export declare class SubmissionsService {
         merchantPhone: string | null;
         merchantActivity: string | null;
         merchantRccm: string | null;
+        clientUuid: string;
         syncStatus: import("@prisma/client").$Enums.SyncStatus;
         createdOffline: boolean;
         level1At: Date | null;
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
-        createdAt: Date;
         submittedAt: Date | null;
-        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -321,8 +294,66 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
+            category: import("@prisma/client").$Enums.PhotoCategory | null;
+        }[];
+    }>;
+    update(id: string, dto: import('./dto/update-submission.dto').UpdateSubmissionDto, user: Omit<User, 'password'>): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: import("@prisma/client").$Enums.SubmissionStatus;
+        zoneId: string | null;
+        commune: string;
+        quartier: string | null;
+        type: import("@prisma/client").$Enums.SubmissionType;
+        commercialId: string;
+        latitude: number | null;
+        longitude: number | null;
+        gpsAccuracy: number | null;
+        gpsCapturedAt: Date | null;
+        addressNote: string | null;
+        prospectFullName: string | null;
+        prospectPhone: string | null;
+        prospectProfession: string | null;
+        prospectGender: string | null;
+        prospectAge: number | null;
+        appStatus: import("@prisma/client").$Enums.AppStatus | null;
+        phoneType: string | null;
+        bankAccount: string | null;
+        observations: string | null;
+        merchantName: string | null;
+        merchantOwner: string | null;
+        merchantPhone: string | null;
+        merchantActivity: string | null;
+        merchantRccm: string | null;
+        clientUuid: string;
+        syncStatus: import("@prisma/client").$Enums.SyncStatus;
+        createdOffline: boolean;
+        level1At: Date | null;
+        level1Comment: string | null;
+        level2At: Date | null;
+        level2Comment: string | null;
+        submittedAt: Date | null;
+        commercial: {
+            id: string;
+            matricule: string;
+            fullName: string;
+        };
+        level1Validator: {
+            id: string;
+            matricule: string;
+            fullName: string;
+        } | null;
+        level2Validator: {
+            id: string;
+            matricule: string;
+            fullName: string;
+        } | null;
+        photos: {
+            url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
@@ -335,17 +366,18 @@ export declare class SubmissionsService {
     }>;
     approveLevel1(id: string, user: Omit<User, 'password'>, comment?: string): Promise<{
         id: string;
-        clientUuid: string;
-        type: import("@prisma/client").$Enums.SubmissionType;
+        createdAt: Date;
+        updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
-        commercialId: string;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
+        type: import("@prisma/client").$Enums.SubmissionType;
+        commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -361,15 +393,14 @@ export declare class SubmissionsService {
         merchantPhone: string | null;
         merchantActivity: string | null;
         merchantRccm: string | null;
+        clientUuid: string;
         syncStatus: import("@prisma/client").$Enums.SyncStatus;
         createdOffline: boolean;
         level1At: Date | null;
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
-        createdAt: Date;
         submittedAt: Date | null;
-        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -386,24 +417,25 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
     approveLevel2(id: string, user: Omit<User, 'password'>, comment?: string): Promise<{
         id: string;
-        clientUuid: string;
-        type: import("@prisma/client").$Enums.SubmissionType;
+        createdAt: Date;
+        updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
-        commercialId: string;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
+        type: import("@prisma/client").$Enums.SubmissionType;
+        commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -419,15 +451,14 @@ export declare class SubmissionsService {
         merchantPhone: string | null;
         merchantActivity: string | null;
         merchantRccm: string | null;
+        clientUuid: string;
         syncStatus: import("@prisma/client").$Enums.SyncStatus;
         createdOffline: boolean;
         level1At: Date | null;
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
-        createdAt: Date;
         submittedAt: Date | null;
-        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -444,24 +475,25 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
     rejectLevel1(id: string, user: Omit<User, 'password'>, comment: string): Promise<{
         id: string;
-        clientUuid: string;
-        type: import("@prisma/client").$Enums.SubmissionType;
+        createdAt: Date;
+        updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
-        commercialId: string;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
+        type: import("@prisma/client").$Enums.SubmissionType;
+        commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -477,15 +509,14 @@ export declare class SubmissionsService {
         merchantPhone: string | null;
         merchantActivity: string | null;
         merchantRccm: string | null;
+        clientUuid: string;
         syncStatus: import("@prisma/client").$Enums.SyncStatus;
         createdOffline: boolean;
         level1At: Date | null;
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
-        createdAt: Date;
         submittedAt: Date | null;
-        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -502,24 +533,25 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
     rejectLevel2(id: string, user: Omit<User, 'password'>, comment: string): Promise<{
         id: string;
-        clientUuid: string;
-        type: import("@prisma/client").$Enums.SubmissionType;
+        createdAt: Date;
+        updatedAt: Date;
         status: import("@prisma/client").$Enums.SubmissionStatus;
-        commercialId: string;
         zoneId: string | null;
+        commune: string;
+        quartier: string | null;
+        type: import("@prisma/client").$Enums.SubmissionType;
+        commercialId: string;
         latitude: number | null;
         longitude: number | null;
         gpsAccuracy: number | null;
         gpsCapturedAt: Date | null;
-        commune: string;
-        quartier: string | null;
         addressNote: string | null;
         prospectFullName: string | null;
         prospectPhone: string | null;
@@ -535,15 +567,14 @@ export declare class SubmissionsService {
         merchantPhone: string | null;
         merchantActivity: string | null;
         merchantRccm: string | null;
+        clientUuid: string;
         syncStatus: import("@prisma/client").$Enums.SyncStatus;
         createdOffline: boolean;
         level1At: Date | null;
         level1Comment: string | null;
         level2At: Date | null;
         level2Comment: string | null;
-        createdAt: Date;
         submittedAt: Date | null;
-        updatedAt: Date;
         commercial: {
             id: string;
             matricule: string;
@@ -560,39 +591,12 @@ export declare class SubmissionsService {
             fullName: string;
         } | null;
         photos: {
-            id: string;
             url: string;
+            id: string;
             category: import("@prisma/client").$Enums.PhotoCategory | null;
         }[];
     }>;
-    getStats(user: Omit<User, 'password'>, zoneId?: string): Promise<{
-        total: number;
-        byStatus: {
-            draft: number;
-            submitted: number;
-            supervisorApproved: number;
-            validated: number;
-            rejectedL1: number;
-            rejectedL2: number;
-        };
-        byType: {
-            prospects: number;
-            marchands: number;
-        };
-        today: {
-            total: number;
-            validated: number;
-        };
-        week: {
-            total: number;
-            validated: number;
-        };
-        validationRate: number;
-        pending: {
-            level1: number;
-            level2: number;
-        };
-    }>;
+    getStats(user: Omit<User, 'password'>, zoneId?: string): Promise<StatsResult>;
     private validateFieldsByType;
     private validatePhotosByType;
     private checkAccessToSubmission;
