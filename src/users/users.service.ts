@@ -29,6 +29,10 @@ const USER_SELECT = {
   supervisorId: true,
   createdAt: true,
   updatedAt: true,
+  appInstalled: true,
+  isOnline: true,
+  lastActive: true,
+  lastLogin: true,
   cluster: {
     select: {
       id: true,
@@ -960,5 +964,115 @@ export class UsersService {
     }
 
     return matricule;
+  }
+
+  /**
+   * Récupère les statistiques d'un utilisateur.
+   * SUPERVISEUR peut voir uniquement ses commerciaux.
+   */
+  async getStats(userId: string, currentUser: any) {
+    // Vérifier les permissions
+    if (currentUser.role === Role.SUPERVISEUR) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { supervisorId: true },
+      });
+      if (!user || user.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Vous ne pouvez voir que les statistiques de vos commerciaux');
+      }
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        cluster: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const [totalSubmissions, validatedSubmissions, rejectedSubmissions, todaySubmissions, weekSubmissions] = await Promise.all([
+      this.prisma.submission.count({
+        where: { commercialId: userId },
+      }),
+      this.prisma.submission.count({
+        where: { commercialId: userId, status: 'VALIDATED' },
+      }),
+      this.prisma.submission.count({
+        where: { commercialId: userId, status: 'REJECTED' },
+      }),
+      this.prisma.submission.count({
+        where: { commercialId: userId, createdAt: { gte: startOfToday } },
+      }),
+      this.prisma.submission.count({
+        where: { commercialId: userId, createdAt: { gte: startOfWeek } },
+      }),
+    ]);
+
+    const validationRate = totalSubmissions > 0
+      ? Math.round((validatedSubmissions / totalSubmissions) * 100)
+      : 0;
+
+    return {
+      totalSubmissions,
+      validatedSubmissions,
+      rejectedSubmissions,
+      todaySubmissions,
+      weekSubmissions,
+      validationRate,
+    };
+  }
+
+  /**
+   * Récupère les informations de paiement d'un utilisateur.
+   * SUPERVISEUR peut voir uniquement ses commerciaux.
+   */
+  async getPayment(userId: string, currentUser: any) {
+    // Vérifier les permissions
+    if (currentUser.role === Role.SUPERVISEUR) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { supervisorId: true },
+      });
+      if (!user || user.supervisorId !== currentUser.id) {
+        throw new ForbiddenException('Vous ne pouvez voir que les paiements de vos commerciaux');
+      }
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    const validatedSubmissions = await this.prisma.submission.count({
+      where: { commercialId: userId, status: 'VALIDATED' },
+    });
+
+    // Taux par soumission (à configurer selon les règles métier)
+    const ratePerSubmission = 500; // 500 FCFA par soumission validée
+
+    const totalEarned = validatedSubmissions * ratePerSubmission;
+    
+    // Pour l'instant, on considère que tout est à payer (pas de système de paiement implémenté)
+    const paidAmount = 0;
+    const pendingPayment = totalEarned - paidAmount;
+
+    return {
+      totalEarned,
+      paidAmount,
+      pendingPayment,
+      ratePerSubmission,
+    };
   }
 }

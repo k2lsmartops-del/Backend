@@ -60,6 +60,10 @@ const USER_SELECT = {
     supervisorId: true,
     createdAt: true,
     updatedAt: true,
+    appInstalled: true,
+    isOnline: true,
+    lastActive: true,
+    lastLogin: true,
     cluster: {
         select: {
             id: true,
@@ -691,6 +695,89 @@ let UsersService = class UsersService {
             return candidate;
         }
         return matricule;
+    }
+    async getStats(userId, currentUser) {
+        if (currentUser.role === client_1.Role.SUPERVISEUR) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { supervisorId: true },
+            });
+            if (!user || user.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Vous ne pouvez voir que les statistiques de vos commerciaux');
+            }
+        }
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                cluster: true,
+            },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        const [totalSubmissions, validatedSubmissions, rejectedSubmissions, todaySubmissions, weekSubmissions] = await Promise.all([
+            this.prisma.submission.count({
+                where: { commercialId: userId },
+            }),
+            this.prisma.submission.count({
+                where: { commercialId: userId, status: 'VALIDATED' },
+            }),
+            this.prisma.submission.count({
+                where: { commercialId: userId, status: 'REJECTED' },
+            }),
+            this.prisma.submission.count({
+                where: { commercialId: userId, createdAt: { gte: startOfToday } },
+            }),
+            this.prisma.submission.count({
+                where: { commercialId: userId, createdAt: { gte: startOfWeek } },
+            }),
+        ]);
+        const validationRate = totalSubmissions > 0
+            ? Math.round((validatedSubmissions / totalSubmissions) * 100)
+            : 0;
+        return {
+            totalSubmissions,
+            validatedSubmissions,
+            rejectedSubmissions,
+            todaySubmissions,
+            weekSubmissions,
+            validationRate,
+        };
+    }
+    async getPayment(userId, currentUser) {
+        if (currentUser.role === client_1.Role.SUPERVISEUR) {
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { supervisorId: true },
+            });
+            if (!user || user.supervisorId !== currentUser.id) {
+                throw new common_1.ForbiddenException('Vous ne pouvez voir que les paiements de vos commerciaux');
+            }
+        }
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        const validatedSubmissions = await this.prisma.submission.count({
+            where: { commercialId: userId, status: 'VALIDATED' },
+        });
+        const ratePerSubmission = 500;
+        const totalEarned = validatedSubmissions * ratePerSubmission;
+        const paidAmount = 0;
+        const pendingPayment = totalEarned - paidAmount;
+        return {
+            totalEarned,
+            paidAmount,
+            pendingPayment,
+            ratePerSubmission,
+        };
     }
 };
 exports.UsersService = UsersService;

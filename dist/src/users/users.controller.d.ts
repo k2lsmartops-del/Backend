@@ -34,16 +34,14 @@ export declare class UsersController {
     create(currentUser: Omit<User, 'password'>, dto: CreateUserDto): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -58,21 +56,25 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+        appInstalled: never;
+        isOnline: never;
+        lastActive: never;
+        lastLogin: never;
     }>;
     findAll(user: Omit<User, 'password'>, query: QueryUsersDto): Promise<{
         data: {
             id: string;
             matricule: string;
+            fullName: string;
             email: string | null;
             phone: string;
-            fullName: string;
             role: import("@prisma/client").$Enums.Role;
             status: import("@prisma/client").$Enums.AgentStatus;
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
-            clusterId: string | null;
-            supervisorId: string | null;
             cluster: {
                 id: string;
                 supervisor: {
@@ -87,6 +89,12 @@ export declare class UsersController {
                 matricule: string;
                 fullName: string;
             } | null;
+            clusterId: string | null;
+            supervisorId: string | null;
+            appInstalled: never;
+            isOnline: never;
+            lastActive: never;
+            lastLogin: never;
         }[];
         meta: {
             total: number;
@@ -98,16 +106,14 @@ export declare class UsersController {
     findOne(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -128,20 +134,24 @@ export declare class UsersController {
             fullName: string;
             isActive: boolean;
         }[];
+        clusterId: string | null;
+        supervisorId: string | null;
+        appInstalled: never;
+        isOnline: never;
+        lastActive: never;
+        lastLogin: never;
     }>;
     update(currentUser: Omit<User, 'password'>, id: string, dto: UpdateUserDto): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -156,20 +166,24 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+        appInstalled: never;
+        isOnline: never;
+        lastActive: never;
+        lastLogin: never;
     }>;
     deactivate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -184,20 +198,24 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+        appInstalled: never;
+        isOnline: never;
+        lastActive: never;
+        lastLogin: never;
     }>;
     activate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -212,20 +230,24 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+        appInstalled: never;
+        isOnline: never;
+        lastActive: never;
+        lastLogin: never;
     }>;
     suspend(id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -240,6 +262,12 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+        appInstalled: never;
+        isOnline: never;
+        lastActive: never;
+        lastLogin: never;
     }>;
     resetPassword(currentUser: Omit<User, 'password'>, id: string): Promise<{
         message: string;
@@ -248,16 +276,14 @@ export declare class UsersController {
     removeFromTeam(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -272,5 +298,25 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+        appInstalled: never;
+        isOnline: never;
+        lastActive: never;
+        lastLogin: never;
+    }>;
+    getStats(currentUser: Omit<User, 'password'>, id: string): Promise<{
+        totalSubmissions: number;
+        validatedSubmissions: number;
+        rejectedSubmissions: number;
+        todaySubmissions: number;
+        weekSubmissions: number;
+        validationRate: number;
+    }>;
+    getPayment(currentUser: Omit<User, 'password'>, id: string): Promise<{
+        totalEarned: number;
+        paidAmount: number;
+        pendingPayment: number;
+        ratePerSubmission: number;
     }>;
 }

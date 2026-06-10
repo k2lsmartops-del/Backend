@@ -160,4 +160,30 @@ export class UsersController {
     return this.usersService.removeFromTeam(id, currentUser);
   }
 
+  /**
+   * GET /users/:id/stats — Statistiques d'un utilisateur.
+   * SUPERVISEUR peut voir uniquement ses commerciaux.
+   */
+  @Get(':id/stats')
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  getStats(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.getStats(id, currentUser);
+  }
+
+  /**
+   * GET /users/:id/payment — Informations de paiement d'un utilisateur.
+   * SUPERVISEUR peut voir uniquement ses commerciaux.
+   */
+  @Get(':id/payment')
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  getPayment(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.getPayment(id, currentUser);
+  }
+
 }

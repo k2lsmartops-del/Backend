@@ -60,6 +60,12 @@ let UsersController = class UsersController {
     removeFromTeam(currentUser, id) {
         return this.usersService.removeFromTeam(id, currentUser);
     }
+    getStats(currentUser, id) {
+        return this.usersService.getStats(id, currentUser);
+    }
+    getPayment(currentUser, id) {
+        return this.usersService.getPayment(id, currentUser);
+    }
 };
 exports.UsersController = UsersController;
 __decorate([
@@ -159,6 +165,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "removeFromTeam", null);
+__decorate([
+    (0, common_1.Get)(':id/stats'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getStats", null);
+__decorate([
+    (0, common_1.Get)(':id/payment'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getPayment", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

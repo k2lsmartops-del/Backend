@@ -179,6 +179,12 @@ model User {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
+  // Suivi de l'application et de la connexion
+  appInstalled Boolean  @default(false)
+  isOnline     Boolean  @default(false)
+  lastActive   DateTime?
+  lastLogin    DateTime?
+
   // Rattachement à un cluster (superviseurs et commerciaux)
   clusterId String?
   cluster   Cluster? @relation("ClusterMembers", fields: [clusterId], references: [id], onDelete: SetNull)
