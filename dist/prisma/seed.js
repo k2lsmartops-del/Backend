@@ -112,6 +112,20 @@ async function main() {
             supervisorId: superviseur.id,
         },
     });
+    await prisma.user.upsert({
+        where: { phone: '0700000005' },
+        update: {},
+        create: {
+            matricule: 'CLI-001',
+            fullName: 'MANSA BANK',
+            phone: '0700000005',
+            email: 'client@mansabank.ci',
+            password,
+            role: client_1.Role.CLIENT,
+            status: client_1.AgentStatus.ACTIF,
+            isActive: true,
+        },
+    });
     const communesData = [
         {
             name: 'Yopougon',
@@ -196,13 +210,14 @@ async function main() {
     console.log(`Seed terminé :`);
     console.log(`  - ${communesData.length} communes`);
     console.log(`  - ${communesData.reduce((s, c) => s + c.quartiers.length, 0)} quartiers`);
-    console.log('  - 4 utilisateurs');
+    console.log('  - 5 utilisateurs');
     console.log('');
     console.log('IDENTIFIANTS DE CONNEXION (mot de passe: password123)');
     console.log('  Admin        -> 0700000001');
     console.log('  Coordinateur -> 0700000002');
     console.log('  Superviseur  -> 0700000003');
     console.log('  Commercial   -> 0700000004');
+    console.log('  Client       -> 0700000005 (MANSA BANK)');
 }
 main()
     .catch((e) => {
