@@ -765,18 +765,22 @@ let UsersService = class UsersService {
         if (!user) {
             throw new common_1.NotFoundException('Utilisateur non trouvé');
         }
-        const validatedSubmissions = await this.prisma.submission.count({
-            where: { commercialId: userId, status: 'VALIDATED' },
-        });
-        const ratePerSubmission = 500;
-        const totalEarned = validatedSubmissions * ratePerSubmission;
-        const paidAmount = 0;
-        const pendingPayment = totalEarned - paidAmount;
+        const [totalValidated, installedCount, installedActivatedCount] = await Promise.all([
+            this.prisma.submission.count({
+                where: { commercialId: userId, status: 'VALIDATED' },
+            }),
+            this.prisma.submission.count({
+                where: { commercialId: userId, status: 'VALIDATED', appStatus: 'INSTALLED' },
+            }),
+            this.prisma.submission.count({
+                where: { commercialId: userId, status: 'VALIDATED', appStatus: 'INSTALLED_ACTIVATED' },
+            }),
+        ]);
         return {
-            totalEarned,
-            paidAmount,
-            pendingPayment,
-            ratePerSubmission,
+            totalValidated,
+            installedCount,
+            installedActivatedCount,
+            note: 'Les prix par type d\'installation sont à définir. Le calcul du paiement se fait manuellement.',
         };
     }
 };

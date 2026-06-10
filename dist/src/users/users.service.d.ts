@@ -344,9 +344,9 @@ export declare class UsersService {
         validationRate: number;
     }>;
     getPayment(userId: string, currentUser: any): Promise<{
-        totalEarned: number;
-        paidAmount: number;
-        pendingPayment: number;
-        ratePerSubmission: number;
+        totalValidated: number;
+        installedCount: number;
+        installedActivatedCount: number;
+        note: string;
     }>;
 }

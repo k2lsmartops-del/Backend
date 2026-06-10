@@ -314,9 +314,9 @@ export declare class UsersController {
         validationRate: number;
     }>;
     getPayment(currentUser: Omit<User, 'password'>, id: string): Promise<{
-        totalEarned: number;
-        paidAmount: number;
-        pendingPayment: number;
-        ratePerSubmission: number;
+        totalValidated: number;
+        installedCount: number;
+        installedActivatedCount: number;
+        note: string;
     }>;
 }

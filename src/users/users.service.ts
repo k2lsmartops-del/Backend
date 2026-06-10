@@ -1034,6 +1034,7 @@ export class UsersService {
   /**
    * Récupère les informations de paiement d'un utilisateur.
    * SUPERVISEUR peut voir uniquement ses commerciaux.
+   * Affiche les statistiques par type d'installation pour le calcul manuel.
    */
   async getPayment(userId: string, currentUser: any) {
     // Vérifier les permissions
@@ -1055,24 +1056,24 @@ export class UsersService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    const validatedSubmissions = await this.prisma.submission.count({
-      where: { commercialId: userId, status: 'VALIDATED' },
-    });
-
-    // Taux par soumission (à configurer selon les règles métier)
-    const ratePerSubmission = 500; // 500 FCFA par soumission validée
-
-    const totalEarned = validatedSubmissions * ratePerSubmission;
-    
-    // Pour l'instant, on considère que tout est à payer (pas de système de paiement implémenté)
-    const paidAmount = 0;
-    const pendingPayment = totalEarned - paidAmount;
+    // Compter les soumissions validées par type d'installation
+    const [totalValidated, installedCount, installedActivatedCount] = await Promise.all([
+      this.prisma.submission.count({
+        where: { commercialId: userId, status: 'VALIDATED' },
+      }),
+      this.prisma.submission.count({
+        where: { commercialId: userId, status: 'VALIDATED', appStatus: 'INSTALLED' },
+      }),
+      this.prisma.submission.count({
+        where: { commercialId: userId, status: 'VALIDATED', appStatus: 'INSTALLED_ACTIVATED' },
+      }),
+    ]);
 
     return {
-      totalEarned,
-      paidAmount,
-      pendingPayment,
-      ratePerSubmission,
+      totalValidated,
+      installedCount,
+      installedActivatedCount,
+      note: 'Les prix par type d\'installation sont à définir. Le calcul du paiement se fait manuellement.',
     };
   }
 }
