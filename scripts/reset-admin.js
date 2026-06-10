@@ -2,41 +2,42 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { Client } = require('pg');
 
-async function resetAdmin() {
+async function resetAllPasswords() {
   const client = new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }, // requis pour Supabase
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
     console.log('✅ Connecté à la base Supabase');
 
-    const checkResult = await client.query(
-      `SELECT id, matricule, phone, "fullName", role FROM users WHERE matricule = 'ADM-001'`
+    // Compter les utilisateurs concernés (hors ADMIN)
+    const countResult = await client.query(
+      `SELECT COUNT(*) FROM users WHERE role != 'ADMIN'`
     );
+    const totalUsers = parseInt(countResult.rows[0].count, 10);
+    console.log(`📊 ${totalUsers} utilisateurs non-ADMIN trouvés`);
 
-    const hashedPassword = await bcrypt.hash('password123', 12);
-
-    if (checkResult.rows.length === 0) {
-      console.log('ADMIN non trouvé, création...');
-      await client.query(`
-        INSERT INTO users (id, matricule, "fullName", phone, email, password, role, status, "isActive", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), 'ADM-001', 'Administrateur', '0700000001', 'admin@aip.ci', $1, 'ADMIN', 'ACTIF', true, NOW(), NOW())
-      `, [hashedPassword]);
-      console.log('✅ ADMIN créé');
-    } else {
-      console.log('ADMIN trouvé, réinitialisation...');
-      await client.query(
-        `UPDATE users SET password = $1, role = 'ADMIN', matricule = 'ADM-001' WHERE phone = '0700000001'`,
-        [hashedPassword]
-      );
-      console.log('✅ Mot de passe et rôle ADMIN réinitialisés');
+    if (totalUsers === 0) {
+      console.log('⚠️  Aucun utilisateur à mettre à jour');
+      return;
     }
 
-    console.log('\n📋 Identifiants:');
-    console.log('   Phone: 0700000001');
-    console.log('   Password: password123');
+    // Hash unique réutilisé pour tous
+    const hashedPassword = await bcrypt.hash('password123', 12);
+    console.log('🔐 Hash généré');
+
+    // Update de tous sauf les ADMIN
+    const updateResult = await client.query(
+      `UPDATE users SET password = $1, "updatedAt" = NOW() WHERE role != 'ADMIN'`,
+      [hashedPassword]
+    );
+
+    console.log(`✅ ${updateResult.rowCount} mots de passe réinitialisés`);
+    console.log('   (les comptes ADMIN sont intacts)');
+    console.log('\n📋 Nouveau mot de passe : password123');
+    console.log('   Pour : Coordinateur, Superviseur, Commercial');
   } catch (error) {
     console.error('❌ Erreur:', error.message);
   } finally {
@@ -44,4 +45,4 @@ async function resetAdmin() {
   }
 }
 
-resetAdmin();
+resetAllPasswords();

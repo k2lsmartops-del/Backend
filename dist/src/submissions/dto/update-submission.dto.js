@@ -29,8 +29,7 @@ class UpdateSubmissionDto {
     prospectGender;
     prospectAge;
     appStatus;
-    phoneType;
-    bankAccount;
+    sponsorCode;
     observations;
     merchantName;
     merchantOwner;
@@ -114,12 +113,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], UpdateSubmissionDto.prototype, "phoneType", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UpdateSubmissionDto.prototype, "bankAccount", void 0);
+], UpdateSubmissionDto.prototype, "sponsorCode", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

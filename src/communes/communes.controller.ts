@@ -10,15 +10,15 @@ export class CommunesController {
   constructor(private communesService: CommunesService) {}
 
   /**
-   * GET /communes/my-zone — Communes et quartiers de la zone du commercial
-   * Retourne les communes affectées à la zone de l'utilisateur connecté,
+   * GET /communes/my-cluster — Communes et quartiers du cluster de l'utilisateur
+   * Retourne les communes affectées au cluster de l'utilisateur connecté,
    * avec leurs quartiers. Permet au commercial de sélectionner facilement.
    * IMPORTANT: Cette route doit être AVANT les routes génériques pour éviter les conflits
    */
-  @Get('my-zone')
+  @Get('my-cluster')
   @Roles(Role.COMMERCIAL, Role.SUPERVISEUR, Role.COORDINATEUR, Role.ADMIN)
-  findMyZone(@CurrentUser() user: User) {
-    return this.communesService.findByUserZone(user);
+  findMyCluster(@CurrentUser() user: User) {
+    return this.communesService.findByUserCluster(user);
   }
 
   /**

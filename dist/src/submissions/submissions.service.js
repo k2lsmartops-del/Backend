@@ -36,8 +36,7 @@ const SUBMISSION_SELECT = {
     prospectGender: true,
     prospectAge: true,
     appStatus: true,
-    phoneType: true,
-    bankAccount: true,
+    sponsorCode: true,
     observations: true,
     merchantName: true,
     merchantOwner: true,
@@ -50,15 +49,12 @@ const SUBMISSION_SELECT = {
     createdAt: true,
     submittedAt: true,
     updatedAt: true,
-    level1At: true,
-    level1Comment: true,
-    level2At: true,
-    level2Comment: true,
+    validatedAt: true,
+    validationComment: true,
     commercial: { select: { id: true, fullName: true, matricule: true } },
-    level1Validator: { select: { id: true, fullName: true, matricule: true } },
-    level2Validator: { select: { id: true, fullName: true, matricule: true } },
+    validator: { select: { id: true, fullName: true, matricule: true } },
     photos: { select: { id: true, url: true, category: true } },
-    zoneId: true,
+    clusterId: true,
 };
 let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
     prisma;
@@ -127,10 +123,8 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
                 clientUuid: dto.clientUuid,
                 status: targetStatus,
                 commercialId: user.id,
-                zoneId: user.zoneId || null,
-                secteurId: user.secteurId || null,
+                clusterId: user.clusterId || null,
                 communeId: communeId,
-                quartierId: quartierId,
                 commune: communeName,
                 quartier: quartierName,
                 addressNote: dto.addressNote || null,
@@ -144,8 +138,7 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
                 prospectGender: dto.prospectGender || null,
                 prospectAge: dto.prospectAge || null,
                 appStatus: dto.appStatus || null,
-                phoneType: dto.phoneType || null,
-                bankAccount: dto.bankAccount || null,
+                sponsorCode: dto.sponsorCode || null,
                 observations: dto.observations || null,
                 merchantName: dto.merchantName || null,
                 merchantOwner: dto.merchantOwner || null,
@@ -204,7 +197,7 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
         };
     }
     async findAll(query, user) {
-        const { type, status, zoneId, commercialId, commune, search, } = query;
+        const { type, status, clusterId, commercialId, commune, search, } = query;
         const page = Number(query.page) || 1;
         const limit = Number(query.limit) || 20;
         const skip = (page - 1) * limit;
@@ -214,15 +207,10 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
                 where.commercialId = user.id;
                 break;
             case client_1.Role.SUPERVISEUR:
-                where.zoneId = user.zoneId;
+                where.clusterId = user.clusterId;
                 where.status = { notIn: [client_1.SubmissionStatus.DRAFT] };
                 break;
             case client_1.Role.COORDINATEUR:
-                where.zoneId = user.zoneId;
-                where.status = {
-                    notIn: [client_1.SubmissionStatus.DRAFT, client_1.SubmissionStatus.SUBMITTED],
-                };
-                break;
             case client_1.Role.ADMIN:
                 break;
             default:
@@ -232,8 +220,8 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             where.type = type;
         if (status)
             where.status = status;
-        if (zoneId)
-            where.zoneId = zoneId;
+        if (clusterId)
+            where.clusterId = clusterId;
         if (commercialId)
             where.commercialId = commercialId;
         if (commune)
@@ -364,7 +352,7 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
         await this.prisma.submission.delete({ where: { id } });
         return { deleted: true };
     }
-    async approveLevel1(id, user, comment) {
+    async validate(id, user, comment) {
         const submission = await this.prisma.submission.findUnique({
             where: { id },
         });
@@ -372,53 +360,17 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             throw new common_1.NotFoundException('Soumission non trouvée');
         }
         if (submission.status !== client_1.SubmissionStatus.SUBMITTED) {
-            throw new common_1.BadRequestException('Cette soumission ne peut pas être validée niveau 1 (statut actuel : ' +
+            throw new common_1.BadRequestException('Cette soumission ne peut pas être validée (statut actuel : ' +
                 submission.status +
                 ')');
-        }
-        if (user.role !== client_1.Role.ADMIN && submission.zoneId !== user.zoneId) {
-            throw new common_1.ForbiddenException('Vous ne pouvez valider que les soumissions de votre zone');
-        }
-        return this.prisma.submission.update({
-            where: { id },
-            data: {
-                status: client_1.SubmissionStatus.SUPERVISOR_APPROVED,
-                level1ValidatorId: user.id,
-                level1At: new Date(),
-                level1Comment: comment || null,
-                validationHistory: {
-                    create: {
-                        actorId: user.id,
-                        action: client_1.ValidationAction.SUPERVISOR_APPROVED,
-                        comment: comment || null,
-                    },
-                },
-            },
-            select: SUBMISSION_SELECT,
-        });
-    }
-    async approveLevel2(id, user, comment) {
-        const submission = await this.prisma.submission.findUnique({
-            where: { id },
-        });
-        if (!submission) {
-            throw new common_1.NotFoundException('Soumission non trouvée');
-        }
-        if (submission.status !== client_1.SubmissionStatus.SUPERVISOR_APPROVED) {
-            throw new common_1.BadRequestException('Cette soumission ne peut pas être validée niveau 2 (statut actuel : ' +
-                submission.status +
-                ')');
-        }
-        if (user.role !== client_1.Role.ADMIN && submission.zoneId !== user.zoneId) {
-            throw new common_1.ForbiddenException('Vous ne pouvez valider que les soumissions de votre zone');
         }
         return this.prisma.submission.update({
             where: { id },
             data: {
                 status: client_1.SubmissionStatus.VALIDATED,
-                level2ValidatorId: user.id,
-                level2At: new Date(),
-                level2Comment: comment || null,
+                validatorId: user.id,
+                validatedAt: new Date(),
+                validationComment: comment || null,
                 validationHistory: {
                     create: {
                         actorId: user.id,
@@ -430,7 +382,7 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             select: SUBMISSION_SELECT,
         });
     }
-    async rejectLevel1(id, user, comment) {
+    async reject(id, user, comment) {
         const submission = await this.prisma.submission.findUnique({
             where: { id },
         });
@@ -438,22 +390,21 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             throw new common_1.NotFoundException('Soumission non trouvée');
         }
         if (submission.status !== client_1.SubmissionStatus.SUBMITTED) {
-            throw new common_1.BadRequestException('Cette soumission ne peut pas être rejetée au niveau 1');
-        }
-        if (user.role !== client_1.Role.ADMIN && submission.zoneId !== user.zoneId) {
-            throw new common_1.ForbiddenException('Vous ne pouvez rejeter que les soumissions de votre zone');
+            throw new common_1.BadRequestException('Cette soumission ne peut pas être rejetée (statut actuel : ' +
+                submission.status +
+                ')');
         }
         return this.prisma.submission.update({
             where: { id },
             data: {
-                status: client_1.SubmissionStatus.REJECTED_L1,
-                level1ValidatorId: user.id,
-                level1At: new Date(),
-                level1Comment: comment,
+                status: client_1.SubmissionStatus.REJECTED,
+                validatorId: user.id,
+                validatedAt: new Date(),
+                validationComment: comment,
                 validationHistory: {
                     create: {
                         actorId: user.id,
-                        action: client_1.ValidationAction.REJECTED_L1,
+                        action: client_1.ValidationAction.REJECTED,
                         comment,
                     },
                 },
@@ -461,64 +412,31 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             select: SUBMISSION_SELECT,
         });
     }
-    async rejectLevel2(id, user, comment) {
-        const submission = await this.prisma.submission.findUnique({
-            where: { id },
-        });
-        if (!submission) {
-            throw new common_1.NotFoundException('Soumission non trouvée');
-        }
-        if (submission.status !== client_1.SubmissionStatus.SUPERVISOR_APPROVED) {
-            throw new common_1.BadRequestException('Cette soumission ne peut pas être rejetée au niveau 2');
-        }
-        if (user.role !== client_1.Role.ADMIN && submission.zoneId !== user.zoneId) {
-            throw new common_1.ForbiddenException('Vous ne pouvez rejeter que les soumissions de votre zone');
-        }
-        return this.prisma.submission.update({
-            where: { id },
-            data: {
-                status: client_1.SubmissionStatus.REJECTED_L2,
-                level2ValidatorId: user.id,
-                level2At: new Date(),
-                level2Comment: comment,
-                validationHistory: {
-                    create: {
-                        actorId: user.id,
-                        action: client_1.ValidationAction.REJECTED_L2,
-                        comment,
-                    },
-                },
-            },
-            select: SUBMISSION_SELECT,
-        });
-    }
-    async getStats(user, zoneId) {
-        const cacheKey = `dashboard:stats:${user.role}:${user.id}:${zoneId || 'all'}`;
+    async getStats(user, clusterId) {
+        const cacheKey = `dashboard:stats:${user.role}:${user.id}:${clusterId || 'all'}`;
         const cached = await this.cache.get(cacheKey);
         if (cached) {
             this.logger.debug(`KPIs servis depuis le cache (${cacheKey})`);
             return cached;
         }
         this.logger.debug(`KPIs recalculés — COUNT en base (${cacheKey})`);
-        let effectiveZoneId;
-        if (user.role === client_1.Role.COORDINATEUR) {
-            effectiveZoneId = user.zoneId || undefined;
+        let effectiveClusterId;
+        if ((user.role === client_1.Role.COORDINATEUR || user.role === client_1.Role.ADMIN) && clusterId) {
+            effectiveClusterId = clusterId;
         }
-        else if (user.role === client_1.Role.ADMIN && zoneId) {
-            effectiveZoneId = zoneId;
+        else if (user.role === client_1.Role.SUPERVISEUR && user.clusterId) {
+            effectiveClusterId = user.clusterId;
         }
         const where = {};
-        if (effectiveZoneId) {
-            where.zoneId = effectiveZoneId;
+        if (effectiveClusterId) {
+            where.clusterId = effectiveClusterId;
         }
-        const [total, draft, submitted, supervisorApproved, validated, rejectedL1, rejectedL2, prospects, marchands,] = await Promise.all([
+        const [total, draft, submitted, validated, rejected, prospects, marchands,] = await Promise.all([
             this.prisma.submission.count({ where }),
             this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.DRAFT } }),
             this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.SUBMITTED } }),
-            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.SUPERVISOR_APPROVED } }),
             this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.VALIDATED } }),
-            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.REJECTED_L1 } }),
-            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.REJECTED_L2 } }),
+            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.REJECTED } }),
             this.prisma.submission.count({ where: { ...where, type: client_1.SubmissionType.PROSPECT } }),
             this.prisma.submission.count({ where: { ...where, type: client_1.SubmissionType.MARCHAND } }),
         ]);
@@ -538,17 +456,13 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             this.prisma.submission.count({ where: { ...weekWhere, status: client_1.SubmissionStatus.VALIDATED } }),
         ]);
         const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
-        const pendingL1 = submitted;
-        const pendingL2 = supervisorApproved;
         const result = {
             total,
             byStatus: {
                 draft,
                 submitted,
-                supervisorApproved,
                 validated,
-                rejectedL1,
-                rejectedL2,
+                rejected,
             },
             byType: {
                 prospects,
@@ -563,10 +477,7 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
                 validated: weekValidated,
             },
             validationRate,
-            pending: {
-                level1: pendingL1,
-                level2: pendingL2,
-            },
+            pending: submitted,
         };
         await this.cache.set(cacheKey, result);
         return result;
@@ -598,14 +509,6 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
     validatePhotosByType(dto) {
         const photos = dto.photos || [];
         const categories = photos.map((p) => p.category);
-        if (dto.type === client_1.SubmissionType.PROSPECT) {
-            if (!categories.includes('APP_SCREEN')) {
-                throw new common_1.BadRequestException('Photo écran app (APP_SCREEN) obligatoire pour un prospect');
-            }
-            if (!categories.includes('ID_DOCUMENT')) {
-                throw new common_1.BadRequestException('Photo CNI (ID_DOCUMENT) obligatoire pour un prospect');
-            }
-        }
         if (dto.type === client_1.SubmissionType.MARCHAND) {
             if (!categories.includes('STOREFRONT')) {
                 throw new common_1.BadRequestException('Photo façade (STOREFRONT) obligatoire pour un marchand');
@@ -626,8 +529,10 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
                 throw new common_1.ForbiddenException('Accès refusé à cette soumission');
             }
         }
-        if (user.role === client_1.Role.SUPERVISEUR || user.role === client_1.Role.COORDINATEUR) {
-            if (submission.zoneId !== user.zoneId) {
+        if (user.role === client_1.Role.COORDINATEUR)
+            return;
+        if (user.role === client_1.Role.SUPERVISEUR) {
+            if (submission.clusterId !== user.clusterId) {
                 throw new common_1.ForbiddenException('Accès refusé à cette soumission');
             }
         }

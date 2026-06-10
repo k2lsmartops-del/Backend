@@ -33,29 +33,24 @@ export declare class UsersController {
     }>;
     create(currentUser: Omit<User, 'password'>, dto: CreateUserDto): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-            coordinator: {
-                id: string;
-                matricule: string;
-                fullName: string;
-            } | null;
-        } | null;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
-        secteur: {
+        cluster: {
             id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
             name: string;
         } | null;
         supervisor: {
@@ -67,29 +62,24 @@ export declare class UsersController {
     findAll(user: Omit<User, 'password'>, query: QueryUsersDto): Promise<{
         data: {
             id: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            zone: {
-                id: string;
-                name: string;
-                coordinator: {
-                    id: string;
-                    matricule: string;
-                    fullName: string;
-                } | null;
-            } | null;
             matricule: string;
             email: string | null;
             phone: string;
             fullName: string;
             role: import("@prisma/client").$Enums.Role;
             status: import("@prisma/client").$Enums.AgentStatus;
-            zoneId: string | null;
-            secteurId: string | null;
+            isActive: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            clusterId: string | null;
             supervisorId: string | null;
-            secteur: {
+            cluster: {
                 id: string;
+                supervisor: {
+                    id: string;
+                    matricule: string;
+                    fullName: string;
+                } | null;
                 name: string;
             } | null;
             supervisor: {
@@ -107,29 +97,24 @@ export declare class UsersController {
     }>;
     findOne(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-            coordinator: {
-                id: string;
-                matricule: string;
-                fullName: string;
-            } | null;
-        } | null;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
-        secteur: {
+        cluster: {
             id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
             name: string;
         } | null;
         supervisor: {
@@ -139,36 +124,31 @@ export declare class UsersController {
         } | null;
         commercials: {
             id: string;
-            isActive: boolean;
             matricule: string;
             fullName: string;
+            isActive: boolean;
         }[];
     }>;
     update(currentUser: Omit<User, 'password'>, id: string, dto: UpdateUserDto): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-            coordinator: {
-                id: string;
-                matricule: string;
-                fullName: string;
-            } | null;
-        } | null;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
-        secteur: {
+        cluster: {
             id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
             name: string;
         } | null;
         supervisor: {
@@ -179,29 +159,24 @@ export declare class UsersController {
     }>;
     deactivate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-            coordinator: {
-                id: string;
-                matricule: string;
-                fullName: string;
-            } | null;
-        } | null;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
-        secteur: {
+        cluster: {
             id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
             name: string;
         } | null;
         supervisor: {
@@ -212,29 +187,24 @@ export declare class UsersController {
     }>;
     activate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-            coordinator: {
-                id: string;
-                matricule: string;
-                fullName: string;
-            } | null;
-        } | null;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
-        secteur: {
+        cluster: {
             id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
             name: string;
         } | null;
         supervisor: {
@@ -245,29 +215,24 @@ export declare class UsersController {
     }>;
     suspend(id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-            coordinator: {
-                id: string;
-                matricule: string;
-                fullName: string;
-            } | null;
-        } | null;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
-        secteur: {
+        cluster: {
             id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
             name: string;
         } | null;
         supervisor: {
@@ -282,29 +247,24 @@ export declare class UsersController {
     }>;
     removeFromTeam(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        zone: {
-            id: string;
-            name: string;
-            coordinator: {
-                id: string;
-                matricule: string;
-                fullName: string;
-            } | null;
-        } | null;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
-        secteur: {
+        cluster: {
             id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
             name: string;
         } | null;
         supervisor: {
@@ -312,45 +272,5 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
-    }>;
-    testPassword(dto: {
-        phone: string;
-        password: string;
-    }): Promise<{
-        success: boolean;
-        error: string;
-        phone: string;
-        user?: undefined;
-        passwordTest?: undefined;
-        hashInfo?: undefined;
-    } | {
-        success: boolean;
-        user: {
-            matricule: string;
-            fullName: string;
-            role: import("@prisma/client").$Enums.Role;
-            status: import("@prisma/client").$Enums.AgentStatus;
-            isActive: boolean;
-        };
-        passwordTest: {
-            original: boolean;
-            originalLength: number;
-            originalBytes: number[];
-            variations: Record<string, boolean>;
-        };
-        hashInfo: {
-            stored: string;
-        };
-        error?: undefined;
-        phone?: undefined;
-    }>;
-    debugPasswords(): Promise<{
-        summary: {
-            total: number;
-            found: number;
-            matching: number;
-            crossMatchDetected: boolean;
-        };
-        details: any[];
     }>;
 }

@@ -36,8 +36,8 @@ let SubmissionsController = class SubmissionsController {
     sync(dto, user) {
         return this.submissionsService.syncBatch(dto.submissions, user);
     }
-    getStats(user, zoneId) {
-        return this.submissionsService.getStats(user, zoneId);
+    getStats(user, clusterId) {
+        return this.submissionsService.getStats(user, clusterId);
     }
     findAll(query, user) {
         return this.submissionsService.findAll(query, user);
@@ -54,17 +54,11 @@ let SubmissionsController = class SubmissionsController {
     remove(id, user) {
         return this.submissionsService.remove(id, user);
     }
-    approveLevel1(id, dto, user) {
-        return this.submissionsService.approveLevel1(id, user, dto?.comment);
+    validate(id, dto, user) {
+        return this.submissionsService.validate(id, user, dto?.comment);
     }
-    rejectLevel1(id, dto, user) {
-        return this.submissionsService.rejectLevel1(id, user, dto.comment);
-    }
-    approveLevel2(id, dto, user) {
-        return this.submissionsService.approveLevel2(id, user, dto?.comment);
-    }
-    rejectLevel2(id, dto, user) {
-        return this.submissionsService.rejectLevel2(id, user, dto.comment);
+    reject(id, dto, user) {
+        return this.submissionsService.reject(id, user, dto.comment);
     }
 };
 exports.SubmissionsController = SubmissionsController;
@@ -92,7 +86,7 @@ __decorate([
     (0, common_1.Get)('stats'),
     (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Query)('zoneId')),
+    __param(1, (0, common_1.Query)('clusterId')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
@@ -143,27 +137,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], SubmissionsController.prototype, "remove", null);
 __decorate([
-    (0, common_1.Patch)(':id/approve-l1'),
-    (0, roles_decorator_1.Roles)(client_1.Role.SUPERVISEUR, client_1.Role.ADMIN),
-    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
-    __param(1, (0, common_1.Body)()),
-    __param(2, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, validate_submission_dto_1.ValidateSubmissionDto, Object]),
-    __metadata("design:returntype", void 0)
-], SubmissionsController.prototype, "approveLevel1", null);
-__decorate([
-    (0, common_1.Patch)(':id/reject-l1'),
-    (0, roles_decorator_1.Roles)(client_1.Role.SUPERVISEUR, client_1.Role.ADMIN),
-    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
-    __param(1, (0, common_1.Body)()),
-    __param(2, (0, current_user_decorator_1.CurrentUser)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, reject_submission_dto_1.RejectSubmissionDto, Object]),
-    __metadata("design:returntype", void 0)
-], SubmissionsController.prototype, "rejectLevel1", null);
-__decorate([
-    (0, common_1.Patch)(':id/approve-l2'),
+    (0, common_1.Patch)(':id/validate'),
     (0, roles_decorator_1.Roles)(client_1.Role.COORDINATEUR, client_1.Role.ADMIN),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
     __param(1, (0, common_1.Body)()),
@@ -171,9 +145,9 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, validate_submission_dto_1.ValidateSubmissionDto, Object]),
     __metadata("design:returntype", void 0)
-], SubmissionsController.prototype, "approveLevel2", null);
+], SubmissionsController.prototype, "validate", null);
 __decorate([
-    (0, common_1.Patch)(':id/reject-l2'),
+    (0, common_1.Patch)(':id/reject'),
     (0, roles_decorator_1.Roles)(client_1.Role.COORDINATEUR, client_1.Role.ADMIN),
     __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
     __param(1, (0, common_1.Body)()),
@@ -181,7 +155,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, reject_submission_dto_1.RejectSubmissionDto, Object]),
     __metadata("design:returntype", void 0)
-], SubmissionsController.prototype, "rejectLevel2", null);
+], SubmissionsController.prototype, "reject", null);
 exports.SubmissionsController = SubmissionsController = __decorate([
     (0, common_1.Controller)('submissions'),
     __metadata("design:paramtypes", [submissions_service_1.SubmissionsService])

@@ -14,11 +14,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
     private prisma;
     constructor(configService: ConfigService, prisma: PrismaService);
     validate(payload: JwtPayload): Promise<{
-        zone: {
-            id: string;
-            name: string;
-        } | null;
-        secteur: {
+        cluster: {
             id: string;
             name: string;
         } | null;
@@ -28,17 +24,16 @@ export declare class JwtStrategy extends JwtStrategy_base {
             fullName: string;
         } | null;
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         matricule: string;
         email: string | null;
         phone: string;
         fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
     }>;
 }

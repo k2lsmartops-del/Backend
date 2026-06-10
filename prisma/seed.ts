@@ -9,16 +9,6 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   const password = await bcrypt.hash('password123', 10);
 
-  // ── Zone ──
-  const zone = await prisma.zone.upsert({
-    where: { name: 'Zone Abidjan-Sud' },
-    update: {},
-    create: {
-      name: 'Zone Abidjan-Sud',
-      description: 'Zone couvrant Marcory, Treichville, Port-Bouet',
-    },
-  });
-
   // ── Admin ──
   await prisma.user.upsert({
     where: { phone: '0700000001' },
@@ -35,8 +25,8 @@ async function main() {
     },
   });
 
-  // ── Coordinateur ──
-  const coordinateur = await prisma.user.upsert({
+  // ── Coordinateur (compte global, pas de cluster) ──
+  await prisma.user.upsert({
     where: { phone: '0700000002' },
     update: {},
     create: {
@@ -48,17 +38,20 @@ async function main() {
       role: Role.COORDINATEUR,
       status: AgentStatus.ACTIF,
       isActive: true,
-      zoneId: zone.id,
     },
   });
 
-  // Rattacher le coordinateur a la zone
-  await prisma.zone.update({
-    where: { id: zone.id },
-    data: { coordinatorId: coordinateur.id },
+  // ── Cluster ──
+  const cluster = await prisma.cluster.upsert({
+    where: { name: 'Cluster Abidjan-Sud' },
+    update: {},
+    create: {
+      name: 'Cluster Abidjan-Sud',
+      description: 'Cluster couvrant Marcory, Treichville, Port-Bouet',
+    },
   });
 
-  // ── Superviseur ──
+  // ── Superviseur (dirige le cluster) ──
   const superviseur = await prisma.user.upsert({
     where: { phone: '0700000003' },
     update: {},
@@ -71,8 +64,14 @@ async function main() {
       role: Role.SUPERVISEUR,
       status: AgentStatus.ACTIF,
       isActive: true,
-      zoneId: zone.id,
+      clusterId: cluster.id,
     },
+  });
+
+  // Rattacher le superviseur au cluster
+  await prisma.cluster.update({
+    where: { id: cluster.id },
+    data: { supervisorId: superviseur.id },
   });
 
   // ── Commercial ──
@@ -88,7 +87,7 @@ async function main() {
       role: Role.COMMERCIAL,
       status: AgentStatus.ACTIF,
       isActive: true,
-      zoneId: zone.id,
+      clusterId: cluster.id,
       supervisorId: superviseur.id,
     },
   });

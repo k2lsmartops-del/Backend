@@ -1,17 +1,23 @@
 // ════════════════════════════════════════════════════════════════════
-//  AIP TERRAIN — Schéma Prisma
+//  K2L TERRAIN — Schéma Prisma (refonte Cluster)
 //
-//  Workflow de validation à 2 niveaux (systématique) :
-//    Commercial → Superviseur (niv.1) → Coordinateur (niv.2) → Validé
+//  Hiérarchie à 3 niveaux :
+//    COORDINATEUR  (valide TOUTES les soumissions)
+//      └── SUPERVISEUR  (1 par cluster, gère ses commerciaux)
+//            └── COMMERCIAL  (rattaché à 1 superviseur = 1 cluster)
 //
-//  4 rôles : ADMIN, COORDINATEUR, SUPERVISEUR, COMMERCIAL
+//  Workflow validation à 1 seul niveau :
+//    DRAFT → SUBMITTED → VALIDATED (ou REJECTED)
 //
 //  Organisation géographique :
 //    COUCHE RÉFÉRENCE (figée, seed) : Commune → Quartier
-//    COUCHE OPÉRATIONNELLE (admin) : Zone → Secteur
+//    COUCHE OPÉRATIONNELLE (admin) : Cluster (regroupe des communes)
 //
-//    Zone (1 coordinateur) → Secteur (1 superviseur) → Commerciaux
-//    Zone regroupe des Communes, Secteur regroupe des Quartiers
+//  Règles clés :
+//    - Une commune appartient à UN seul cluster
+//    - Un cluster est dirigé par UN superviseur (relation 1-à-1)
+//    - La table Quartier est conservée pour usage futur (KPIs)
+//      mais le commercial saisit son quartier en texte libre dans la soumission
 // ════════════════════════════════════════════════════════════════════
 
 generator client {
@@ -26,71 +32,58 @@ datasource db {
 //  ENUMS
 // ════════════════════════════════════════════════════════════════════
 
-/// Les 4 rôles de la plateforme.
 enum Role {
-  ADMIN // Pilotage global AIP
-  COORDINATEUR // Validation niveau 2, pilotage de zone
-  SUPERVISEUR // Validation niveau 1
-  COMMERCIAL // Collecte terrain
-  CLIENT // Lecture seule : KPIs + enregistrements validés (ex: MANSA BANK)
+  ADMIN
+  COORDINATEUR
+  SUPERVISEUR
+  COMMERCIAL
+  CLIENT
 }
 
-/// Type de soumission terrain.
 enum SubmissionType {
-  PROSPECT // Recrutement d'un utilisateur final (client banque)
-  MARCHAND // Enrôlement d'un commerce partenaire
+  PROSPECT
+  MARCHAND
 }
 
-/// États du workflow de validation à 2 niveaux.
-///   DRAFT → SUBMITTED → SUPERVISOR_APPROVED → VALIDATED
-///   (rejet possible à chaque niveau : REJECTED_L1 / REJECTED_L2)
+/// Workflow simplifié à 1 seul niveau de validation.
 enum SubmissionStatus {
-  DRAFT // Brouillon local, jamais soumis
-  SUBMITTED // Soumis, en attente de validation niveau 1 (superviseur)
-  SUPERVISOR_APPROVED // Validé niveau 1, en attente niveau 2 (coordinateur)
-  VALIDATED // Validé niveau 2 — validation finale
-  REJECTED_L1 // Rejeté par le superviseur (niveau 1)
-  REJECTED_L2 // Rejeté par le coordinateur (niveau 2)
+  DRAFT     // Brouillon local, jamais soumis
+  SUBMITTED // Soumis, en attente de validation par le coordinateur
+  VALIDATED // Validé par le coordinateur — validation finale
+  REJECTED  // Rejeté par le coordinateur
 }
 
-/// Statut d'installation de l'application bancaire (donnée digitale du prospect).
 enum AppStatus {
-  INSTALLED // Application installée
-  INSTALLED_ACTIVATED // Application installée et activée
+  NOT_INSTALLED
+  INSTALLED
+  INSTALLED_ACTIVATED
 }
 
-/// Statut de synchronisation d'une soumission créée offline.
 enum SyncStatus {
   PENDING
   SYNCED
   FAILED
 }
 
-/// Statut de l'agent (cycle de vie du compte).
-/// Conforme au document K2L Profils — Fiche (IV).
 enum AgentStatus {
-  ACTIF // Opérationnel, autorisé à utiliser l'application
-  SUSPENDU // Temporairement bloqué (disciplinaire, absence, fraude suspectée)
-  EN_ATTENTE // Pas encore validé (dossier en cours, formation non terminée)
-  DESACTIVE // Compte fermé définitivement (fin de mission, démission)
+  ACTIF
+  SUSPENDU
+  EN_ATTENTE
+  DESACTIVE
 }
 
-/// Catégorie de photo preuve rattachée à une soumission.
+/// Catégories de photos UNIQUEMENT pour les marchands.
+/// Les prospects n'ont plus de photos.
 enum PhotoCategory {
-  APP_SCREEN // Écran avec l'app installée (prospect)
-  ID_DOCUMENT // CNI du client/propriétaire
-  STOREFRONT // Façade du commerce (marchand)
-  QR_CODE // QR code du marchand installé
+  STOREFRONT
+  QR_CODE
+  ID_DOCUMENT
 }
 
-/// Type d'action dans l'historique de validation (traçabilité / audit).
 enum ValidationAction {
-  SUBMITTED // Soumission initiale par le commercial
-  SUPERVISOR_APPROVED // Validation niveau 1 par le superviseur
-  VALIDATED // Validation niveau 2 (finale) par le coordinateur
-  REJECTED_L1 // Rejet niveau 1
-  REJECTED_L2 // Rejet niveau 2
-  RETURNED // Renvoyé pour correction
+  SUBMITTED
+  VALIDATED
+  REJECTED
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -98,55 +91,46 @@ enum ValidationAction {
 // ════════════════════════════════════════════════════════════════════
 
 /// Commune d'Abidjan (ex: Yopougon, Cocody, Marcory…).
-/// Peut être affectée à UNE zone (zoneId nullable = non affectée).
+/// Une commune appartient à UN SEUL cluster (clusterId nullable = non affectée).
 model Commune {
   id        String   @id @default(uuid())
   name      String   @unique
   createdAt DateTime @default(now())
 
-  // ── Affectation à une zone (nullable = non encore affectée) ──
-  zoneId String?
-  zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  // Affectation à un cluster
+  clusterId String?
+  cluster   Cluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
 
-  // ── Relations ──
   quartiers   Quartier[]
   submissions Submission[] @relation("SubmissionCommune")
 
-  @@index([zoneId])
+  @@index([clusterId])
   @@map("communes")
 }
 
 /// Quartier rattaché à UNE commune (référence figée).
-/// Peut être affecté à UN secteur (secteurId nullable = disponible).
+/// Conservé pour usage futur (analyses KPIs par quartier).
+/// Le commercial saisit son quartier en TEXTE LIBRE dans la soumission.
 model Quartier {
   id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
 
-  // ── Commune parente (fixe) ──
   communeId String
   commune   Commune @relation(fields: [communeId], references: [id], onDelete: Restrict)
 
-  // ── Affectation à un secteur (nullable = disponible) ──
-  secteurId String?
-  secteur   Secteur? @relation(fields: [secteurId], references: [id], onDelete: SetNull)
-
-  // ── Relations ──
-  submissions Submission[] @relation("SubmissionQuartier")
-
   @@unique([name, communeId])
   @@index([communeId])
-  @@index([secteurId])
   @@map("quartiers")
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  COUCHE OPÉRATIONNELLE — Zone & Secteur
+//  COUCHE OPÉRATIONNELLE — Cluster
 // ════════════════════════════════════════════════════════════════════
 
-/// Zone définie librement par l'admin (ex: "Zone Sud", "Zone Abidjan-Est").
-/// Regroupe des communes. Pilotée par UN coordinateur.
-model Zone {
+/// Cluster défini librement par l'admin (ex: "Cluster Sud", "Cluster Abidjan-Est").
+/// Regroupe une ou plusieurs communes. Dirigé par UN superviseur (1-à-1).
+model Cluster {
   id          String   @id @default(uuid())
   name        String   @unique
   description String?
@@ -154,114 +138,73 @@ model Zone {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // ── Coordinateur de la zone (relation 1-à-1) ──
-  coordinatorId String? @unique
-  coordinator   User?   @relation("ZoneCoordinator", fields: [coordinatorId], references: [id], onDelete: SetNull)
+  // Superviseur du cluster (1-à-1, nullable si pas encore assigné)
+  supervisorId String? @unique
+  supervisor   User?   @relation("ClusterSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
 
-  // ── Membres rattachés à la zone ──
-  members User[] @relation("ZoneMembers")
+  // Membres rattachés au cluster (le superviseur + ses commerciaux)
+  members User[] @relation("ClusterMembers")
 
-  // ── Communes affectées à cette zone ──
+  // Communes affectées à ce cluster
   communes Commune[]
 
-  // ── Secteurs de cette zone ──
-  secteurs Secteur[]
-
   @@index([isActive])
-  @@map("zones")
-}
-
-/// Secteur opérationnel : regroupe des quartiers, appartient à UNE zone.
-/// Dirigé par UN superviseur (relation 1-à-1).
-model Secteur {
-  id        String   @id @default(uuid())
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // ── Zone parente ──
-  zoneId String
-  zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Restrict)
-
-  // ── Superviseur du secteur (relation 1-à-1) ──
-  supervisorId String? @unique
-  supervisor   User?   @relation("SecteurSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
-
-  // ── Quartiers affectés à ce secteur ──
-  quartiers Quartier[]
-
-  // ── Commerciaux rattachés à ce secteur ──
-  members User[] @relation("SecteurMembers")
-
-  // ── Soumissions dénormalisées ──
-  submissions Submission[] @relation("SubmissionSecteur")
-
-  @@unique([name, zoneId])
-  @@index([zoneId])
-  @@index([isActive])
-  @@map("secteurs")
+  @@map("clusters")
 }
 
 // ════════════════════════════════════════════════════════════════════
 //  UTILISATEURS & AUTHENTIFICATION
 // ════════════════════════════════════════════════════════════════════
 
-/// Compte utilisateur — couvre les 4 rôles.
+/// Compte utilisateur — couvre les 5 rôles.
 ///
-/// Rattachements :
-///   - Un COORDINATEUR pilote UNE zone (via ZoneCoordinator)
-///   - Un SUPERVISEUR pilote UN secteur (via SecteurSupervisor) et appartient à une zone
-///   - Un COMMERCIAL appartient à un secteur (secteurId) et à un superviseur (supervisorId)
+/// Rattachements selon le rôle :
+///   ADMIN        : aucun rattachement territorial
+///   COORDINATEUR : aucun rattachement territorial (voit tout pour valider)
+///   SUPERVISEUR  : dirige UN cluster (via Cluster.supervisorId)
+///                  + appartient au cluster (clusterId, pour cohérence des filtres)
+///   COMMERCIAL   : appartient à UN superviseur (supervisorId)
+///                  + hérite du clusterId du superviseur (dénormalisé pour KPIs)
+///   CLIENT       : aucun rattachement (lecture seule)
 model User {
   id        String      @id @default(uuid())
   matricule String      @unique
   fullName  String
   email     String?     @unique
   phone     String      @unique
-  password  String // hash bcrypt
+  password  String
   role      Role
   status    AgentStatus @default(ACTIF)
   isActive  Boolean     @default(true)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  // ── Rattachement à une zone (superviseurs et commerciaux) ──
-  zoneId String?
-  zone   Zone?   @relation("ZoneMembers", fields: [zoneId], references: [id], onDelete: SetNull)
+  // Rattachement à un cluster (superviseurs et commerciaux)
+  clusterId String?
+  cluster   Cluster? @relation("ClusterMembers", fields: [clusterId], references: [id], onDelete: SetNull)
 
-  // ── Zone pilotée (uniquement pour le coordinateur) ──
-  coordinatedZone Zone? @relation("ZoneCoordinator")
+  // Cluster dirigé (uniquement pour le superviseur — 1-à-1 inverse)
+  managedCluster Cluster? @relation("ClusterSupervisor")
 
-  // ── Secteur piloté (uniquement pour le superviseur, relation 1-à-1) ──
-  supervisedSecteur Secteur? @relation("SecteurSupervisor")
-
-  // ── Rattachement à un secteur (pour les commerciaux) ──
-  secteurId String?
-  secteur   Secteur? @relation("SecteurMembers", fields: [secteurId], references: [id], onDelete: SetNull)
-
-  // ── Hiérarchie commercial ↔ superviseur ──
+  // Hiérarchie commercial ↔ superviseur
   supervisorId String?
   supervisor   User?   @relation("SupervisorToCommercials", fields: [supervisorId], references: [id], onDelete: SetNull)
   commercials  User[]  @relation("SupervisorToCommercials")
 
-  // ── Relations métier ──
+  // Relations métier
   submissions       Submission[]        @relation("CommercialSubmissions")
-  level1Validations Submission[]        @relation("Level1Validator")
-  level2Validations Submission[]        @relation("Level2Validator")
+  validations       Submission[]        @relation("SubmissionValidator")
   validationHistory ValidationHistory[]
   refreshTokens     RefreshToken[]
 
   @@index([role])
-  @@index([zoneId])
-  @@index([secteurId])
+  @@index([clusterId])
   @@index([supervisorId])
   @@index([isActive])
   @@index([status])
   @@map("users")
 }
 
-/// Refresh tokens pour l'auth JWT.
 model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
@@ -281,98 +224,89 @@ model RefreshToken {
 // ════════════════════════════════════════════════════════════════════
 
 /// Soumission terrain unifiée : un PROSPECT ou un MARCHAND.
+///
+/// PROSPECT : pas de photos. Identité + statut app + code parrain + GPS.
+/// MARCHAND : 3 photos obligatoires (façade, QR code, CNI propriétaire).
 model Submission {
   id     String           @id @default(uuid())
   type   SubmissionType
   status SubmissionStatus @default(DRAFT)
 
-  // ── Auteur (commercial) ──
+  // Auteur (commercial)
   commercialId String
   commercial   User   @relation("CommercialSubmissions", fields: [commercialId], references: [id], onDelete: Restrict)
 
-  // ── Dénormalisation géographique (recopiés à la création pour KPIs) ──
-  zoneId     String?
-  secteurId  String?
-  communeId  String?
-  quartierId String?
+  // Dénormalisation géographique (recopiés à la création pour KPIs rapides)
+  clusterId String?
+  communeId String?
 
-  // ── Relations géographiques (FK) ──
-  secteurRef  Secteur?  @relation("SubmissionSecteur", fields: [secteurId], references: [id], onDelete: SetNull)
-  communeRef  Commune?  @relation("SubmissionCommune", fields: [communeId], references: [id], onDelete: SetNull)
-  quartierRef Quartier? @relation("SubmissionQuartier", fields: [quartierId], references: [id], onDelete: SetNull)
+  // FK vers la commune de référence
+  communeRef Commune? @relation("SubmissionCommune", fields: [communeId], references: [id], onDelete: SetNull)
 
-  // ── Géolocalisation ──
+  // Géolocalisation
   latitude      Float?
   longitude     Float?
   gpsAccuracy   Float?
   gpsCapturedAt DateTime?
-  commune       String
-  quartier      String?
-  addressNote   String?
 
-  // ── Champs PROSPECT ──
+  // Localisation textuelle (saisie par le commercial)
+  commune     String  // nom de la commune (cohérent avec communeRef.name)
+  quartier    String? // texte libre saisi par le commercial
+  addressNote String?
+
+  // Champs PROSPECT
   prospectFullName   String?
   prospectPhone      String?
   prospectProfession String?
   prospectGender     String?
   prospectAge        Int?
   appStatus          AppStatus?
-  phoneType          String?
-  bankAccount        String?
+  sponsorCode        String? // code parrain du commercial
   observations       String?
 
-  // ── Champs MARCHAND ──
+  // Champs MARCHAND
   merchantName     String?
   merchantOwner    String?
   merchantPhone    String?
   merchantActivity String?
   merchantRccm     String?
 
-  // ── Synchronisation offline ──
+  // Synchronisation offline
   clientUuid     String     @unique
   syncStatus     SyncStatus @default(SYNCED)
   createdOffline Boolean    @default(false)
 
-  // ── Validation NIVEAU 1 (superviseur) ──
-  level1ValidatorId String?
-  level1Validator   User?     @relation("Level1Validator", fields: [level1ValidatorId], references: [id], onDelete: SetNull)
-  level1At          DateTime?
-  level1Comment     String?
+  // Validation (coordinateur uniquement, 1 seul niveau)
+  validatorId       String?
+  validator         User?     @relation("SubmissionValidator", fields: [validatorId], references: [id], onDelete: SetNull)
+  validatedAt       DateTime?
+  validationComment String?
 
-  // ── Validation NIVEAU 2 (coordinateur) ──
-  level2ValidatorId String?
-  level2Validator   User?     @relation("Level2Validator", fields: [level2ValidatorId], references: [id], onDelete: SetNull)
-  level2At          DateTime?
-  level2Comment     String?
-
-  // ── Timestamps ──
+  // Timestamps
   createdAt   DateTime  @default(now())
   submittedAt DateTime?
   updatedAt   DateTime  @updatedAt
 
-  // ── Relations ──
+  // Relations
   photos            Photo[]
   validationHistory ValidationHistory[]
 
-  // ── Index ──
+  // Index pour KPIs rapides
   @@index([commercialId])
-  @@index([zoneId])
-  @@index([secteurId])
+  @@index([clusterId])
   @@index([communeId])
-  @@index([quartierId])
   @@index([status])
   @@index([type])
-  @@index([commune])
   @@index([createdAt])
   @@index([prospectPhone])
   @@index([status, type])
-  @@index([level1ValidatorId])
-  @@index([level2ValidatorId])
+  @@index([validatorId])
   @@map("submissions")
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  PHOTOS PREUVES (métadonnées Cloudinary uniquement)
+//  PHOTOS PREUVES (marchands uniquement)
+//  Métadonnées Cloudinary uniquement, jamais de binaire en base.
 // ════════════════════════════════════════════════════════════════════
 
 model Photo {
@@ -382,18 +316,18 @@ model Photo {
 
   cloudinaryPublicId String
   url                String
-  category           PhotoCategory?
+  category           PhotoCategory
   width              Int?
   height             Int?
   bytes              Int?
-  createdAt          DateTime       @default(now())
+  createdAt          DateTime      @default(now())
 
   @@index([submissionId])
   @@map("photos")
 }
 
 // ════════════════════════════════════════════════════════════════════
-//  HISTORIQUE DE VALIDATION (traçabilité / audit / litiges client)
+//  HISTORIQUE DE VALIDATION (traçabilité / audit / litiges)
 // ════════════════════════════════════════════════════════════════════
 
 model ValidationHistory {

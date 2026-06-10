@@ -4,7 +4,7 @@ export declare class CommunesService {
     private prisma;
     constructor(prisma: PrismaService);
     findAll(): Promise<({
-        zone: {
+        cluster: {
             id: string;
             name: string;
         } | null;
@@ -13,39 +13,33 @@ export declare class CommunesService {
         };
     } & {
         id: string;
-        name: string;
         createdAt: Date;
-        zoneId: string | null;
+        clusterId: string | null;
+        name: string;
     })[]>;
     findOne(id: string): Promise<({
-        zone: {
+        cluster: {
             id: string;
             name: string;
         } | null;
-        quartiers: ({
-            secteur: {
-                id: string;
-                name: string;
-            } | null;
-        } & {
+        quartiers: {
             id: string;
-            name: string;
             createdAt: Date;
-            secteurId: string | null;
+            name: string;
             communeId: string;
-        })[];
+        }[];
     } & {
         id: string;
-        name: string;
         createdAt: Date;
-        zoneId: string | null;
+        clusterId: string | null;
+        name: string;
     }) | null>;
-    findByUserZone(user: User): Promise<{
+    findByUserCluster(user: User): Promise<{
         communes: never[];
         message: string;
-        zone?: undefined;
+        cluster?: undefined;
     } | {
-        zone: {
+        cluster: {
             id: string;
             name: string;
         } | null;
@@ -55,7 +49,6 @@ export declare class CommunesService {
             quartiers: {
                 id: string;
                 name: string;
-                secteurId: string | null;
             }[];
         }[];
         message?: undefined;

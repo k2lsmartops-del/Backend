@@ -25,19 +25,17 @@ const USER_SELECT = {
   role: true,
   status: true,
   isActive: true,
-  zoneId: true,
-  secteurId: true,
+  clusterId: true,
   supervisorId: true,
   createdAt: true,
   updatedAt: true,
-  zone: {
+  cluster: {
     select: {
       id: true,
       name: true,
-      coordinator: { select: { id: true, fullName: true, matricule: true } },
+      supervisor: { select: { id: true, fullName: true, matricule: true } },
     },
   },
-  secteur: { select: { id: true, name: true } },
   supervisor: { select: { id: true, fullName: true, matricule: true } },
 };
 
@@ -52,14 +50,13 @@ export class UsersService {
   /**
    * Crée un utilisateur avec génération automatique du matricule.
    * Applique la hiérarchie automatiquement :
-   * - COMMERCIAL assigné à un superviseur → hérite secteurId et zoneId du superviseur
-   * - SUPERVISEUR assigné à un secteur → hérite zoneId du secteur
-   * - Si créé par un COORDINATEUR → hérite automatiquement de sa zoneId
-   * - Si créé par un SUPERVISEUR → ne peut créer que des COMMERCIAL dans son secteur
+   * - COMMERCIAL assigné à un superviseur → hérite clusterId du superviseur
+   * - COORDINATEUR = compte global, peut créer dans n'importe quel cluster
+   * - Si créé par un SUPERVISEUR → ne peut créer que des COMMERCIAL dans son cluster
    */
   async create(
     dto: CreateUserDto,
-    currentUser?: { id?: string; role: Role; zoneId?: string | null; secteurId?: string | null },
+    currentUser?: { id?: string; role: Role; clusterId?: string | null },
   ) {
     // SUPERVISEUR ne peut créer que des COMMERCIAL
     if (currentUser?.role === Role.SUPERVISEUR) {
@@ -73,21 +70,17 @@ export class UsersService {
     // Vérifie les doublons (phone et email)
     await this.checkDuplicates(dto.phone, dto.email);
 
-    // Si créé par un COORDINATEUR, forcer la zoneId du coordinateur
-    let effectiveZoneId = dto.zoneId;
-    if (currentUser?.role === Role.COORDINATEUR && currentUser.zoneId) {
-      effectiveZoneId = currentUser.zoneId;
-    }
+    // Le COORDINATEUR est un compte global — il peut créer dans n'importe quel cluster
+    let effectiveClusterId = dto.clusterId;
 
     // Valide les rattachements selon le rôle
-    await this.validateRoleAssignments(dto.role, effectiveZoneId, dto.supervisorId);
+    await this.validateRoleAssignments(dto.role, effectiveClusterId, dto.supervisorId);
 
     // Applique la hiérarchie automatiquement
-    const { zoneId, secteurId } = await this.resolveHierarchy(
+    const clusterId = await this.resolveHierarchy(
       dto.role,
       dto.supervisorId,
-      dto.secteurId,
-      effectiveZoneId,
+      effectiveClusterId,
     );
 
     // Génère le matricule automatiquement
@@ -110,8 +103,7 @@ export class UsersService {
         role: dto.role,
         status,
         isActive,
-        zoneId,
-        secteurId,
+        clusterId,
         supervisorId: dto.supervisorId || null,
       },
       select: USER_SELECT,
@@ -123,7 +115,7 @@ export class UsersService {
    */
   async findAll(
     query: QueryUsersDto,
-    currentUser?: { role: Role; zoneId?: string | null; secteurId?: string | null },
+    currentUser?: { role: Role; clusterId?: string | null },
   ) {
     const {
       page = 1,
@@ -132,9 +124,8 @@ export class UsersService {
       role,
       status,
       isActive,
-      zoneId,
+      clusterId,
       supervisorId,
-      secteurId,
     } = query;
     const skip = (page - 1) * limit;
 
@@ -145,12 +136,11 @@ export class UsersService {
     if (currentUser) {
       switch (currentUser.role) {
         case Role.COORDINATEUR:
-          // Ne voit que les users de SA zone
-          where.zoneId = currentUser.zoneId;
+          // Compte global — voit tous les users
           break;
         case Role.SUPERVISEUR:
-          // Ne voit que les commerciaux de SON secteur
-          where.secteurId = currentUser.secteurId;
+          // Ne voit que ses commerciaux
+          where.supervisorId = currentUser.clusterId ? undefined : undefined;
           where.role = Role.COMMERCIAL;
           break;
         // ADMIN voit tout — pas de filtre automatique
@@ -161,8 +151,7 @@ export class UsersService {
     if (role && !where.role) where.role = role;
     if (status) where.status = status;
     if (isActive !== undefined) where.isActive = isActive;
-    if (zoneId && !where.zoneId) where.zoneId = zoneId;
-    if (secteurId && !where.secteurId) where.secteurId = secteurId;
+    if (clusterId && !where.clusterId) where.clusterId = clusterId;
     if (supervisorId) where.supervisorId = supervisorId;
 
     // Recherche textuelle sur plusieurs champs
@@ -287,29 +276,13 @@ export class UsersService {
 
     // Applique la hiérarchie automatiquement
     // - Pour COMMERCIAL : hérite toujours du superviseur si assigné
-    // - Pour SUPERVISEUR : hérite du secteur si assigné
     if (newRole === Role.COMMERCIAL && newSupervisorId) {
-      const { zoneId, secteurId } = await this.resolveHierarchy(
+      const clusterId = await this.resolveHierarchy(
         newRole,
         newSupervisorId,
-        dto.secteurId !== undefined ? dto.secteurId : existing.secteurId,
-        existing.zoneId,
+        existing.clusterId,
       );
-      data.zoneId = zoneId;
-      data.secteurId = secteurId;
-    } else if (newRole === Role.SUPERVISEUR) {
-      const newSecteurId =
-        dto.secteurId !== undefined ? dto.secteurId : existing.secteurId;
-      if (newSecteurId) {
-        const { zoneId, secteurId } = await this.resolveHierarchy(
-          newRole,
-          null,
-          newSecteurId,
-          existing.zoneId,
-        );
-        data.zoneId = zoneId;
-        data.secteurId = secteurId;
-      }
+      data.clusterId = clusterId;
     }
 
     // Gestion du statut agent (4 états)
@@ -334,16 +307,16 @@ export class UsersService {
       }
     }
 
-    // GARDE-FOU CAS 4b : Refuser désactivation COORDINATEUR si pilote une zone
-    if (isDeactivating && existing.role === Role.COORDINATEUR) {
-      const coordinatedZone = await this.prisma.zone.findFirst({
-        where: { coordinatorId: id },
+    // GARDE-FOU CAS 4b : Refuser désactivation SUPERVISEUR si pilote un cluster
+    if (isDeactivating && existing.role === Role.SUPERVISEUR) {
+      const managedCluster = await this.prisma.cluster.findFirst({
+        where: { supervisorId: id },
         select: { name: true },
       });
-      if (coordinatedZone) {
+      if (managedCluster) {
         throw new BadRequestException(
-          `Ce coordinateur pilote la zone "${coordinatedZone.name}". ` +
-            `Retirez-le de la zone d'abord.`,
+          `Ce superviseur pilote le cluster "${managedCluster.name}". ` +
+            `Retirez-le du cluster d'abord.`,
         );
       }
     }
@@ -466,7 +439,7 @@ export class UsersService {
 
   /**
    * Retire un commercial de l'équipe du superviseur.
-   * Met supervisorId et secteurId à null.
+   * Met supervisorId à null.
    */
   async removeFromTeam(id: string, currentUser?: { id?: string; role: Role }) {
     const user = await this.prisma.user.findUnique({ where: { id } });
@@ -488,7 +461,7 @@ export class UsersService {
 
     return this.prisma.user.update({
       where: { id },
-      data: { supervisorId: null, secteurId: null, zoneId: null },
+      data: { supervisorId: null, clusterId: null },
       select: USER_SELECT,
     });
   }
@@ -496,9 +469,9 @@ export class UsersService {
   /**
    * Import en masse d'une équipe complète depuis un fichier Excel.
    * Traite les lignes dans l'ordre hiérarchique :
-   *   1. COORDINATEUR → crée/rattache la zone
-   *   2. SUPERVISEUR  → crée/rattache le secteur dans la zone
-   *   3. COMMERCIAL   → rattache au superviseur (par téléphone), hérite secteur/zone
+   *   1. COORDINATEUR → crée/rattache le cluster
+   *   2. SUPERVISEUR  → rattache au cluster
+   *   3. COMMERCIAL   → rattache au superviseur (par téléphone), hérite cluster
    *
    * Chaque ligne est traitée indépendamment : une erreur sur une ligne
    * n'empêche pas le traitement des autres. Retourne un rapport détaillé.
@@ -542,22 +515,18 @@ export class UsersService {
         if (!fullName) throw new BadRequestException('Nom complet requis');
         if (!phone) throw new BadRequestException('Téléphone requis');
 
-        // Mot de passe : fourni ou généré par défaut (calculé AVANT la vérification d'existence)
+        // Mot de passe : fourni ou généré par défaut
         const rawPassword = norm(r.password) || this.generateDefaultPassword();
-        
+
         // Vérifie si l'utilisateur existe déjà (par téléphone)
         const existingUser = await this.prisma.user.findUnique({
           where: { phone },
         });
-        
-        // DEBUG: Log détaillé pour diagnostiquer 401
+
         console.log('[IMPORT]', {
           ligne: rowNum,
           phone: phone,
           pwdProvided: !!norm(r.password),
-          pwdOriginal: r.password,
-          pwdAfterNorm: rawPassword,
-          pwdBytes: Buffer.from(rawPassword, 'utf8').toString('hex'),
           pwdLen: rawPassword.length,
         });
         if (rawPassword.length < 8) {
@@ -584,7 +553,7 @@ export class UsersService {
           const zoneName = norm(r.zone);
           if (!zoneName) {
             throw new BadRequestException(
-              'Zone requise pour un coordinateur',
+              'Cluster (zone) requis pour un coordinateur',
             );
           }
 
@@ -593,7 +562,6 @@ export class UsersService {
           let status: 'created' | 'updated';
 
           if (existingUser) {
-            // UPDATE utilisateur existant
             matricule = existingUser.matricule;
             user = await this.prisma.user.update({
               where: { id: existingUser.id },
@@ -608,7 +576,6 @@ export class UsersService {
             });
             status = 'updated';
           } else {
-            // CREATE nouvel utilisateur
             matricule = await this.generateMatricule(Role.COORDINATEUR);
             user = await this.prisma.user.create({
               data: {
@@ -625,32 +592,9 @@ export class UsersService {
             status = 'created';
           }
 
-          // Crée ou rattache la zone
-          let zone = await this.prisma.zone.findUnique({
-            where: { name: zoneName },
-          });
-          if (!zone) {
-            zone = await this.prisma.zone.create({
-              data: { name: zoneName, coordinatorId: user.id },
-            });
-          } else if (!zone.coordinatorId || zone.coordinatorId === user.id) {
-            await this.prisma.zone.update({
-              where: { id: zone.id },
-              data: { coordinatorId: user.id },
-            });
-          } else if (existingUser && zone.coordinatorId === existingUser.id) {
-            // L'utilisateur existant est déjà le coordinateur de cette zone
-            // Pas besoin de modifier
-          } else {
-            throw new ConflictException(
-              `La zone "${zoneName}" a déjà un coordinateur`,
-            );
-          }
-
-          await this.prisma.user.update({
-            where: { id: user.id },
-            data: { zoneId: zone.id },
-          });
+          // Crée ou rattache le cluster
+          // COORDINATEUR n'est plus lié à un cluster spécifique
+          // Il valide toutes les soumissions de tous les clusters
 
           results.push({
             row: rowNum,
@@ -660,37 +604,30 @@ export class UsersService {
             matricule,
           });
           console.log(
-            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Zone: ${zoneName}`,
+            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Cluster: ${zoneName}`,
           );
         } else if (role === 'SUPERVISEUR') {
           const zoneName = norm(r.zone);
-          const secteurName = norm(r.secteur);
           if (!zoneName) {
-            throw new BadRequestException('Zone requise pour un superviseur');
-          }
-          if (!secteurName) {
-            throw new BadRequestException(
-              'Secteur requis pour un superviseur',
-            );
+            throw new BadRequestException('Cluster (zone) requis pour un superviseur');
           }
 
-          const zone = await this.prisma.zone.findUnique({
+          // Créer ou trouver le cluster
+          let cluster = await this.prisma.cluster.findUnique({
             where: { name: zoneName },
           });
-          if (!zone) {
-            throw new NotFoundException(
-              `Zone "${zoneName}" introuvable (importez d'abord le coordinateur)`,
-            );
+          if (!cluster) {
+            cluster = await this.prisma.cluster.create({
+              data: { name: zoneName },
+            });
           }
 
-          let user: any;
           let matricule: string;
           let status: 'created' | 'updated';
 
           if (existingUser) {
-            // UPDATE utilisateur existant
             matricule = existingUser.matricule;
-            user = await this.prisma.user.update({
+            await this.prisma.user.update({
               where: { id: existingUser.id },
               data: {
                 fullName,
@@ -699,14 +636,13 @@ export class UsersService {
                 role: Role.SUPERVISEUR,
                 status: AgentStatus.ACTIF,
                 isActive: true,
-                zoneId: zone.id,
+                clusterId: cluster.id,
               },
             });
             status = 'updated';
           } else {
-            // CREATE nouvel utilisateur
             matricule = await this.generateMatricule(Role.SUPERVISEUR);
-            user = await this.prisma.user.create({
+            await this.prisma.user.create({
               data: {
                 matricule,
                 fullName,
@@ -716,42 +652,11 @@ export class UsersService {
                 role: Role.SUPERVISEUR,
                 status: AgentStatus.ACTIF,
                 isActive: true,
-                zoneId: zone.id,
+                clusterId: cluster.id,
               },
             });
             status = 'created';
           }
-
-          // Crée ou rattache le secteur
-          let secteur = await this.prisma.secteur.findFirst({
-            where: { name: secteurName, zoneId: zone.id },
-          });
-          if (!secteur) {
-            secteur = await this.prisma.secteur.create({
-              data: {
-                name: secteurName,
-                zoneId: zone.id,
-                supervisorId: user.id,
-              },
-            });
-          } else if (!secteur.supervisorId || secteur.supervisorId === user.id) {
-            await this.prisma.secteur.update({
-              where: { id: secteur.id },
-              data: { supervisorId: user.id },
-            });
-          } else if (existingUser && secteur.supervisorId === existingUser.id) {
-            // L'utilisateur existant est déjà le superviseur de ce secteur
-            // Pas besoin de modifier
-          } else {
-            throw new ConflictException(
-              `Le secteur "${secteurName}" a déjà un superviseur`,
-            );
-          }
-
-          await this.prisma.user.update({
-            where: { id: user.id },
-            data: { secteurId: secteur.id },
-          });
 
           results.push({
             row: rowNum,
@@ -761,7 +666,7 @@ export class UsersService {
             matricule,
           });
           console.log(
-            `[Import] Ligne ${rowNum}: SUPERVISEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Zone: ${zoneName}, Secteur: ${secteurName}`,
+            `[Import] Ligne ${rowNum}: SUPERVISEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Cluster: ${zoneName}`,
           );
         } else if (role === 'COMMERCIAL') {
           const supPhone = norm(r.supervisorPhone);
@@ -779,17 +684,11 @@ export class UsersService {
               `Superviseur (${supPhone}) introuvable`,
             );
           }
-          if (!supervisor.secteurId) {
-            throw new BadRequestException(
-              "Le superviseur n'a pas de secteur assigné",
-            );
-          }
 
           let matricule: string;
           let status: 'created' | 'updated';
 
           if (existingUser) {
-            // UPDATE utilisateur existant
             matricule = existingUser.matricule;
             await this.prisma.user.update({
               where: { id: existingUser.id },
@@ -801,13 +700,11 @@ export class UsersService {
                 status: AgentStatus.ACTIF,
                 isActive: true,
                 supervisorId: supervisor.id,
-                secteurId: supervisor.secteurId,
-                zoneId: supervisor.zoneId,
+                clusterId: supervisor.clusterId,
               },
             });
             status = 'updated';
           } else {
-            // CREATE nouvel utilisateur
             matricule = await this.generateMatricule(Role.COMMERCIAL);
             await this.prisma.user.create({
               data: {
@@ -820,8 +717,7 @@ export class UsersService {
                 status: AgentStatus.ACTIF,
                 isActive: true,
                 supervisorId: supervisor.id,
-                secteurId: supervisor.secteurId,
-                zoneId: supervisor.zoneId,
+                clusterId: supervisor.clusterId,
               },
             });
             status = 'created';
@@ -910,7 +806,7 @@ export class UsersService {
         const validatedCount = await this.prisma.submission.count({
           where: {
             commercialId: m.id,
-            status: { in: ['SUPERVISOR_APPROVED', 'VALIDATED'] },
+            status: 'VALIDATED',
           },
         });
 
@@ -963,19 +859,19 @@ export class UsersService {
 
   /**
    * Valide les règles de rattachement selon le rôle :
-   *  - COMMERCIAL : supervisorId obligatoire (zoneId et secteurId hérités automatiquement)
+   *  - COMMERCIAL : supervisorId obligatoire
    *  - SUPERVISEUR, COORDINATEUR, ADMIN, CLIENT : aucun rattachement obligatoire
    */
   private async validateRoleAssignments(
     role: Role,
-    zoneId?: string | null,
+    clusterId?: string | null,
     supervisorId?: string | null,
   ) {
-    // Vérifie que la zone existe si fournie
-    if (zoneId) {
-      const zone = await this.prisma.zone.findUnique({ where: { id: zoneId } });
-      if (!zone) {
-        throw new NotFoundException('Zone non trouvée');
+    // Vérifie que le cluster existe si fourni
+    if (clusterId) {
+      const cluster = await this.prisma.cluster.findUnique({ where: { id: clusterId } });
+      if (!cluster) {
+        throw new NotFoundException('Cluster non trouvé');
       }
     }
 
@@ -998,60 +894,33 @@ export class UsersService {
           "L'utilisateur désigné n'est pas un superviseur",
         );
       }
-      // Vérifie que le superviseur a bien un secteur assigné
-      if (!supervisor.secteurId) {
-        throw new BadRequestException(
-          'Le superviseur doit être assigné à un secteur avant de lui rattacher des commerciaux',
-        );
-      }
     }
   }
 
   /**
    * Résout la hiérarchie automatiquement :
-   * - COMMERCIAL assigné à un superviseur → hérite secteurId et zoneId du superviseur
-   * - SUPERVISEUR assigné à un secteur → hérite zoneId du secteur
-   * - COORDINATEUR → garde son zoneId tel quel
+   * - COMMERCIAL assigné à un superviseur → hérite clusterId du superviseur
+   * - SUPERVISEUR → garde son clusterId tel quel
+   * - COORDINATEUR → pas de clusterId (compte global)
    */
   private async resolveHierarchy(
     role: Role,
     supervisorId?: string | null,
-    secteurId?: string | null,
-    zoneId?: string | null,
-  ): Promise<{ zoneId: string | null; secteurId: string | null }> {
+    clusterId?: string | null,
+  ): Promise<string | null> {
     // COMMERCIAL : hérite du superviseur
     if (role === Role.COMMERCIAL && supervisorId) {
       const supervisor = await this.prisma.user.findUnique({
         where: { id: supervisorId },
-        select: { zoneId: true, secteurId: true },
+        select: { clusterId: true },
       });
       if (supervisor) {
-        return {
-          zoneId: supervisor.zoneId,
-          secteurId: supervisor.secteurId,
-        };
+        return supervisor.clusterId;
       }
     }
 
-    // SUPERVISEUR : hérite du secteur
-    if (role === Role.SUPERVISEUR && secteurId) {
-      const secteur = await this.prisma.secteur.findUnique({
-        where: { id: secteurId },
-        select: { zoneId: true },
-      });
-      if (secteur) {
-        return {
-          zoneId: secteur.zoneId,
-          secteurId,
-        };
-      }
-    }
-
-    // Sinon, utilise les valeurs fournies
-    return {
-      zoneId: zoneId || null,
-      secteurId: secteurId || null,
-    };
+    // Sinon, utilise la valeur fournie
+    return clusterId || null;
   }
 
   /**
@@ -1091,173 +960,5 @@ export class UsersService {
     }
 
     return matricule;
-  }
-
-  /**
-   * DIAGNOSTIC TEMPORAIRE : vérifie tous les utilisateurs importés.
-   * Teste les mots de passe croisés pour détecter un problème d'ordre.
-   * À SUPPRIMER en production.
-   */
-  async debugPasswords() {
-    const testCases = [
-      { phone: '0700000002', expectedPwd: 'Passw0rd2', name: 'Kouadio Kouassi' },
-      { phone: '0700000003', expectedPwd: 'Passw0rd3', name: 'Konan Koffi' },
-      { phone: '0700000004', expectedPwd: 'Passw0rd4', name: 'Yao Adjoua' },
-      {
-        phone: '0700000176',
-        expectedPwd: 'Passw0rd267',
-        name: 'Akoua Coulibaly',
-      },
-    ];
-
-    const results: any[] = [];
-
-    for (const test of testCases) {
-      const user = await this.prisma.user.findFirst({
-        where: { phone: test.phone },
-        select: {
-          id: true,
-          phone: true,
-          matricule: true,
-          fullName: true,
-          password: true,
-          isActive: true,
-          status: true,
-        },
-      });
-
-      if (!user) {
-        results.push({
-          phone: test.phone,
-          expectedName: test.name,
-          found: false,
-          error: 'Utilisateur non trouvé',
-        });
-        continue;
-      }
-
-      const isValid = await bcrypt.compare(test.expectedPwd, user.password);
-      const pwdBytes = Buffer.from(test.expectedPwd, 'utf8').toString('hex');
-
-      // Test croisé : ce hash correspond-il à un autre mot de passe ?
-      const crossMatches: any[] = [];
-      for (const other of testCases) {
-        if (other.phone !== test.phone) {
-          const crossMatch = await bcrypt.compare(
-            other.expectedPwd,
-            user.password,
-          );
-          if (crossMatch) {
-            crossMatches.push({
-              password: other.expectedPwd,
-              belongsTo: other.name,
-            });
-          }
-        }
-      }
-
-      results.push({
-        phone: test.phone,
-        expectedName: test.name,
-        found: true,
-        actualName: user.fullName,
-        matricule: user.matricule,
-        isActive: user.isActive,
-        status: user.status,
-        passwordTest: {
-          expected: test.expectedPwd,
-          expectedBytes: pwdBytes,
-          expectedLength: test.expectedPwd.length,
-          match: isValid,
-          hashPreview: user.password.substring(0, 30) + '...',
-        },
-        crossMatches:
-          crossMatches.length > 0
-            ? crossMatches
-            : 'Aucun autre mot de passe ne correspond',
-      });
-    }
-
-    return {
-      summary: {
-        total: testCases.length,
-        found: results.filter((r) => r.found).length,
-        matching: results.filter((r) => r.found && r.passwordTest?.match)
-          .length,
-        crossMatchDetected: results.some(
-          (r) => Array.isArray(r.crossMatches) && r.crossMatches.length > 0,
-        ),
-      },
-      details: results,
-    };
-  }
-
-  /**
-   * DIAGNOSTIC TEMPORAIRE : teste si un mot de passe correspond à un utilisateur.
-   * Retourne des informations détaillées pour déboguer les problèmes de connexion.
-   * À SUPPRIMER en production.
-   */
-  async testPassword(phone: string, password: string) {
-    const user = await this.prisma.user.findFirst({
-      where: { phone },
-      select: {
-        id: true,
-        matricule: true,
-        fullName: true,
-        phone: true,
-        password: true,
-        isActive: true,
-        status: true,
-        role: true,
-      },
-    });
-
-    if (!user) {
-      return {
-        success: false,
-        error: 'Utilisateur non trouvé',
-        phone,
-      };
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    // Test variations
-    const variations: Record<string, boolean> = {};
-    const testVariants = [
-      { name: 'trim', value: password.trim() },
-      { name: 'no-spaces', value: password.replace(/\s+/g, '') },
-      { name: 'NFC', value: password.normalize('NFC') },
-      { name: 'NFD', value: password.normalize('NFD') },
-    ];
-
-    for (const variant of testVariants) {
-      if (variant.value !== password) {
-        variations[variant.name] = await bcrypt.compare(
-          variant.value,
-          user.password,
-        );
-      }
-    }
-
-    return {
-      success: isPasswordValid,
-      user: {
-        matricule: user.matricule,
-        fullName: user.fullName,
-        role: user.role,
-        status: user.status,
-        isActive: user.isActive,
-      },
-      passwordTest: {
-        original: isPasswordValid,
-        originalLength: password.length,
-        originalBytes: Array.from(password).map((c) => c.charCodeAt(0)),
-        variations,
-      },
-      hashInfo: {
-        stored: user.password.substring(0, 30) + '...',
-      },
-    };
   }
 }

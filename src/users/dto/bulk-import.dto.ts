@@ -17,8 +17,7 @@ import {
  *  - phone          : Téléphone (identifiant de connexion)
  *  - email          : Email (optionnel)
  *  - password       : Mot de passe (optionnel — défaut généré sinon)
- *  - zone           : Nom de la zone (COORDINATEUR + SUPERVISEUR)
- *  - secteur        : Nom du secteur (SUPERVISEUR)
+ *  - zone           : Nom du cluster (COORDINATEUR + SUPERVISEUR)
  *  - supervisorPhone: Téléphone du superviseur de rattachement (COMMERCIAL)
  */
 export class BulkImportRowDto {
@@ -42,10 +41,6 @@ export class BulkImportRowDto {
   @IsOptional()
   @IsString()
   zone?: string;
-
-  @IsOptional()
-  @IsString()
-  secteur?: string;
 
   @IsOptional()
   @IsString()

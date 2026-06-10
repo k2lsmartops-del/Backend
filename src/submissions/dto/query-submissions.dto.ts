@@ -21,7 +21,7 @@ export class QuerySubmissionsDto extends PaginationDto {
 
   @IsOptional()
   @IsUUID('4')
-  zoneId?: string;
+  clusterId?: string;
 
   @IsOptional()
   @IsUUID('4')

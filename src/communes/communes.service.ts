@@ -11,7 +11,7 @@ export class CommunesService {
       orderBy: { name: 'asc' },
       include: {
         _count: { select: { quartiers: true } },
-        zone: { select: { id: true, name: true } },
+        cluster: { select: { id: true, name: true } },
       },
     });
   }
@@ -22,25 +22,24 @@ export class CommunesService {
       include: {
         quartiers: {
           orderBy: { name: 'asc' },
-          include: { secteur: { select: { id: true, name: true } } },
         },
-        zone: { select: { id: true, name: true } },
+        cluster: { select: { id: true, name: true } },
       },
     });
   }
 
   /**
-   * Récupère les communes et quartiers de la zone de l'utilisateur.
-   * Pour les commerciaux : retourne les communes de leur zone avec tous les quartiers.
+   * Récupère les communes et quartiers du cluster de l'utilisateur.
+   * Pour les commerciaux : retourne les communes de leur cluster avec tous les quartiers.
    * Permet la sélection rapide lors de la création de soumission.
    */
-  async findByUserZone(user: User) {
-    if (!user.zoneId) {
-      return { communes: [], message: 'Aucune zone assignée' };
+  async findByUserCluster(user: User) {
+    if (!user.clusterId) {
+      return { communes: [], message: 'Aucun cluster assigné' };
     }
 
     const communes = await this.prisma.commune.findMany({
-      where: { zoneId: user.zoneId },
+      where: { clusterId: user.clusterId },
       orderBy: { name: 'asc' },
       include: {
         quartiers: {
@@ -48,20 +47,19 @@ export class CommunesService {
           select: {
             id: true,
             name: true,
-            secteurId: true,
           },
         },
       },
     });
 
-    // Récupérer aussi le nom de la zone
-    const zone = await this.prisma.zone.findUnique({
-      where: { id: user.zoneId },
+    // Récupérer aussi le nom du cluster
+    const cluster = await this.prisma.cluster.findUnique({
+      where: { id: user.clusterId },
       select: { id: true, name: true },
     });
 
     return {
-      zone,
+      cluster,
       communes: communes.map((c) => ({
         id: c.id,
         name: c.name,

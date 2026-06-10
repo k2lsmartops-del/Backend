@@ -3,12 +3,12 @@ import { CommunesService } from './communes.service';
 export declare class CommunesController {
     private communesService;
     constructor(communesService: CommunesService);
-    findMyZone(user: User): Promise<{
+    findMyCluster(user: User): Promise<{
         communes: never[];
         message: string;
-        zone?: undefined;
+        cluster?: undefined;
     } | {
-        zone: {
+        cluster: {
             id: string;
             name: string;
         } | null;
@@ -18,13 +18,12 @@ export declare class CommunesController {
             quartiers: {
                 id: string;
                 name: string;
-                secteurId: string | null;
             }[];
         }[];
         message?: undefined;
     }>;
     findAll(): Promise<({
-        zone: {
+        cluster: {
             id: string;
             name: string;
         } | null;
@@ -33,31 +32,25 @@ export declare class CommunesController {
         };
     } & {
         id: string;
-        name: string;
         createdAt: Date;
-        zoneId: string | null;
+        clusterId: string | null;
+        name: string;
     })[]>;
     findOne(id: string): Promise<({
-        zone: {
+        cluster: {
             id: string;
             name: string;
         } | null;
-        quartiers: ({
-            secteur: {
-                id: string;
-                name: string;
-            } | null;
-        } & {
+        quartiers: {
             id: string;
-            name: string;
             createdAt: Date;
-            secteurId: string | null;
+            name: string;
             communeId: string;
-        })[];
+        }[];
     } & {
         id: string;
-        name: string;
         createdAt: Date;
-        zoneId: string | null;
+        clusterId: string | null;
+        name: string;
     }) | null>;
 }

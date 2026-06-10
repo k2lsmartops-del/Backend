@@ -9,5 +9,4 @@ export declare class UpdateUserDto {
     isActive?: boolean;
     zoneId?: string | null;
     supervisorId?: string | null;
-    secteurId?: string | null;
 }

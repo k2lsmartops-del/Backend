@@ -22,7 +22,6 @@ class UpdateUserDto {
     isActive;
     zoneId;
     supervisorId;
-    secteurId;
 }
 exports.UpdateUserDto = UpdateUserDto;
 __decorate([
@@ -73,9 +72,4 @@ __decorate([
     (0, class_validator_1.IsUUID)('4', { message: 'ID de superviseur invalide' }),
     __metadata("design:type", Object)
 ], UpdateUserDto.prototype, "supervisorId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsUUID)('4', { message: 'ID de secteur invalide' }),
-    __metadata("design:type", Object)
-], UpdateUserDto.prototype, "secteurId", void 0);
 //# sourceMappingURL=update-user.dto.js.map

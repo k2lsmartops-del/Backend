@@ -29,10 +29,8 @@ import { RejectSubmissionDto } from './dto/reject-submission.dto';
  *  - POST   /submissions/sync   — Sync batch offline (COMMERCIAL)
  *  - GET    /submissions        — Liste paginée (filtrée par rôle)
  *  - GET    /submissions/:id    — Détail
- *  - PATCH  /submissions/:id/approve-l1 — Validation superviseur
- *  - PATCH  /submissions/:id/reject-l1  — Rejet superviseur
- *  - PATCH  /submissions/:id/approve-l2 — Validation coordinateur
- *  - PATCH  /submissions/:id/reject-l2  — Rejet coordinateur
+ *  - PATCH  /submissions/:id/validate — Validation (coordinateur)
+ *  - PATCH  /submissions/:id/reject   — Rejet (coordinateur)
  */
 @Controller('submissions')
 export class SubmissionsController {
@@ -79,9 +77,9 @@ export class SubmissionsController {
   @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
   getStats(
     @CurrentUser() user: Omit<User, 'password'>,
-    @Query('zoneId') zoneId?: string,
+    @Query('clusterId') clusterId?: string,
   ) {
-    return this.submissionsService.getStats(user, zoneId);
+    return this.submissionsService.getStats(user, clusterId);
   }
 
   /**
@@ -151,54 +149,30 @@ export class SubmissionsController {
   }
 
   /**
-   * PATCH /submissions/:id/approve-l1 — Validation NIVEAU 1 (superviseur).
+   * PATCH /submissions/:id/validate — Validation par le coordinateur.
+   * Workflow simplifié à 1 niveau.
    */
-  @Patch(':id/approve-l1')
-  @Roles(Role.SUPERVISEUR, Role.ADMIN)
-  approveLevel1(
+  @Patch(':id/validate')
+  @Roles(Role.COORDINATEUR, Role.ADMIN)
+  validate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ValidateSubmissionDto,
     @CurrentUser() user: Omit<User, 'password'>,
   ) {
-    return this.submissionsService.approveLevel1(id, user, dto?.comment);
+    return this.submissionsService.validate(id, user, dto?.comment);
   }
 
   /**
-   * PATCH /submissions/:id/reject-l1 — Rejet NIVEAU 1 (superviseur).
+   * PATCH /submissions/:id/reject — Rejet par le coordinateur.
+   * Workflow simplifié à 1 niveau.
    */
-  @Patch(':id/reject-l1')
-  @Roles(Role.SUPERVISEUR, Role.ADMIN)
-  rejectLevel1(
+  @Patch(':id/reject')
+  @Roles(Role.COORDINATEUR, Role.ADMIN)
+  reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RejectSubmissionDto,
     @CurrentUser() user: Omit<User, 'password'>,
   ) {
-    return this.submissionsService.rejectLevel1(id, user, dto.comment);
-  }
-
-  /**
-   * PATCH /submissions/:id/approve-l2 — Validation NIVEAU 2 (coordinateur).
-   */
-  @Patch(':id/approve-l2')
-  @Roles(Role.COORDINATEUR, Role.ADMIN)
-  approveLevel2(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: ValidateSubmissionDto,
-    @CurrentUser() user: Omit<User, 'password'>,
-  ) {
-    return this.submissionsService.approveLevel2(id, user, dto?.comment);
-  }
-
-  /**
-   * PATCH /submissions/:id/reject-l2 — Rejet NIVEAU 2 (coordinateur).
-   */
-  @Patch(':id/reject-l2')
-  @Roles(Role.COORDINATEUR, Role.ADMIN)
-  rejectLevel2(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: RejectSubmissionDto,
-    @CurrentUser() user: Omit<User, 'password'>,
-  ) {
-    return this.submissionsService.rejectLevel2(id, user, dto.comment);
+    return this.submissionsService.reject(id, user, dto.comment);
   }
 }

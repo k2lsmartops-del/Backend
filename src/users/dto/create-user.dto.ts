@@ -14,9 +14,9 @@ import {
  * Seul l'ADMIN peut créer tous les types d'utilisateur.
  *
  * Règles de rattachement :
- *  - COORDINATEUR : pas de zoneId ni supervisorId (la zone sera rattachée via le CRUD zones)
- *  - SUPERVISEUR  : zoneId obligatoire
- *  - COMMERCIAL   : zoneId + supervisorId obligatoires
+ *  - COORDINATEUR : pas de clusterId ni supervisorId (compte global)
+ *  - SUPERVISEUR  : clusterId obligatoire (dirige un cluster)
+ *  - COMMERCIAL   : supervisorId obligatoire (hérite clusterId du superviseur)
  *  - CLIENT       : aucun rattachement
  */
 export class CreateUserDto {
@@ -46,14 +46,11 @@ export class CreateUserDto {
   status?: AgentStatus;
 
   @IsOptional()
-  @IsUUID('4', { message: 'ID de zone invalide' })
-  zoneId?: string;
+  @IsUUID('4', { message: 'ID de cluster invalide' })
+  clusterId?: string;
 
   @IsOptional()
   @IsUUID('4', { message: 'ID de superviseur invalide' })
   supervisorId?: string;
 
-  @IsOptional()
-  @IsUUID('4', { message: 'ID de secteur invalide' })
-  secteurId?: string;
 }

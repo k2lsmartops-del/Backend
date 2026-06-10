@@ -22,7 +22,7 @@ let CommunesService = class CommunesService {
             orderBy: { name: 'asc' },
             include: {
                 _count: { select: { quartiers: true } },
-                zone: { select: { id: true, name: true } },
+                cluster: { select: { id: true, name: true } },
             },
         });
     }
@@ -32,18 +32,17 @@ let CommunesService = class CommunesService {
             include: {
                 quartiers: {
                     orderBy: { name: 'asc' },
-                    include: { secteur: { select: { id: true, name: true } } },
                 },
-                zone: { select: { id: true, name: true } },
+                cluster: { select: { id: true, name: true } },
             },
         });
     }
-    async findByUserZone(user) {
-        if (!user.zoneId) {
-            return { communes: [], message: 'Aucune zone assignée' };
+    async findByUserCluster(user) {
+        if (!user.clusterId) {
+            return { communes: [], message: 'Aucun cluster assigné' };
         }
         const communes = await this.prisma.commune.findMany({
-            where: { zoneId: user.zoneId },
+            where: { clusterId: user.clusterId },
             orderBy: { name: 'asc' },
             include: {
                 quartiers: {
@@ -51,17 +50,16 @@ let CommunesService = class CommunesService {
                     select: {
                         id: true,
                         name: true,
-                        secteurId: true,
                     },
                 },
             },
         });
-        const zone = await this.prisma.zone.findUnique({
-            where: { id: user.zoneId },
+        const cluster = await this.prisma.cluster.findUnique({
+            where: { id: user.clusterId },
             select: { id: true, name: true },
         });
         return {
-            zone,
+            cluster,
             communes: communes.map((c) => ({
                 id: c.id,
                 name: c.name,

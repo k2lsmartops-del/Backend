@@ -23,8 +23,8 @@ let CommunesController = class CommunesController {
     constructor(communesService) {
         this.communesService = communesService;
     }
-    findMyZone(user) {
-        return this.communesService.findByUserZone(user);
+    findMyCluster(user) {
+        return this.communesService.findByUserCluster(user);
     }
     findAll() {
         return this.communesService.findAll();
@@ -35,13 +35,13 @@ let CommunesController = class CommunesController {
 };
 exports.CommunesController = CommunesController;
 __decorate([
-    (0, common_1.Get)('my-zone'),
+    (0, common_1.Get)('my-cluster'),
     (0, roles_decorator_1.Roles)(client_1.Role.COMMERCIAL, client_1.Role.SUPERVISEUR, client_1.Role.COORDINATEUR, client_1.Role.ADMIN),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
-], CommunesController.prototype, "findMyZone", null);
+], CommunesController.prototype, "findMyCluster", null);
 __decorate([
     (0, common_1.Get)(),
     (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR),

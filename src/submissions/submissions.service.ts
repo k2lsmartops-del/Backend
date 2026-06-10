@@ -41,8 +41,7 @@ const SUBMISSION_SELECT = {
   prospectGender: true,
   prospectAge: true,
   appStatus: true,
-  phoneType: true,
-  bankAccount: true,
+  sponsorCode: true,
   observations: true,
   // Champs marchand
   merchantName: true,
@@ -58,17 +57,14 @@ const SUBMISSION_SELECT = {
   createdAt: true,
   submittedAt: true,
   updatedAt: true,
-  // Validation
-  level1At: true,
-  level1Comment: true,
-  level2At: true,
-  level2Comment: true,
+  // Validation (workflow simplifié à 1 niveau)
+  validatedAt: true,
+  validationComment: true,
   // Relations
   commercial: { select: { id: true, fullName: true, matricule: true } },
-  level1Validator: { select: { id: true, fullName: true, matricule: true } },
-  level2Validator: { select: { id: true, fullName: true, matricule: true } },
+  validator: { select: { id: true, fullName: true, matricule: true } },
   photos: { select: { id: true, url: true, category: true } },
-  zoneId: true,
+  clusterId: true,
 };
 
 /**
@@ -79,16 +75,14 @@ export interface StatsResult {
   byStatus: {
     draft: number;
     submitted: number;
-    supervisorApproved: number;
     validated: number;
-    rejectedL1: number;
-    rejectedL2: number;
+    rejected: number;
   };
   byType: { prospects: number; marchands: number };
   today: { total: number; validated: number };
   week: { total: number; validated: number };
   validationRate: number;
-  pending: { level1: number; level2: number };
+  pending: number;
 }
 
 /**
@@ -185,10 +179,8 @@ export class SubmissionsService {
         clientUuid: dto.clientUuid,
         status: targetStatus,
         commercialId: user.id,
-        zoneId: user.zoneId || null,
-        secteurId: user.secteurId || null,
+        clusterId: user.clusterId || null,
         communeId: communeId,
-        quartierId: quartierId,
         commune: communeName,
         quartier: quartierName,
         addressNote: dto.addressNote || null,
@@ -203,8 +195,7 @@ export class SubmissionsService {
         prospectGender: dto.prospectGender || null,
         prospectAge: dto.prospectAge || null,
         appStatus: dto.appStatus || null,
-        phoneType: dto.phoneType || null,
-        bankAccount: dto.bankAccount || null,
+        sponsorCode: dto.sponsorCode || null,
         observations: dto.observations || null,
         // Marchand
         merchantName: dto.merchantName || null,
@@ -283,15 +274,15 @@ export class SubmissionsService {
    * Liste paginée des soumissions avec filtres.
    * Respecte les rôles :
    *  - COMMERCIAL : voit uniquement ses soumissions
-   *  - SUPERVISEUR : voit les soumissions de sa zone (status >= SUBMITTED)
-   *  - COORDINATEUR : voit les soumissions de sa zone (status >= SUPERVISOR_APPROVED)
+   *  - SUPERVISEUR : voit les soumissions de son cluster (status >= SUBMITTED)
+   *  - COORDINATEUR : voit TOUTES les soumissions (compte global)
    *  - ADMIN : voit tout
    */
   async findAll(query: QuerySubmissionsDto, user: Omit<User, 'password'>) {
     const {
       type,
       status,
-      zoneId,
+      clusterId,
       commercialId,
       commune,
       search,
@@ -308,17 +299,12 @@ export class SubmissionsService {
         where.commercialId = user.id;
         break;
       case Role.SUPERVISEUR:
-        where.zoneId = user.zoneId;
+        where.clusterId = user.clusterId;
         where.status = { notIn: [SubmissionStatus.DRAFT] };
         break;
       case Role.COORDINATEUR:
-        where.zoneId = user.zoneId;
-        where.status = {
-          notIn: [SubmissionStatus.DRAFT, SubmissionStatus.SUBMITTED],
-        };
-        break;
       case Role.ADMIN:
-        // Pas de restriction
+        // Pas de restriction — compte global
         break;
       default:
         where.commercialId = user.id;
@@ -327,7 +313,7 @@ export class SubmissionsService {
     // Filtres optionnels
     if (type) where.type = type;
     if (status) where.status = status;
-    if (zoneId) where.zoneId = zoneId;
+    if (clusterId) where.clusterId = clusterId;
     if (commercialId) where.commercialId = commercialId;
     if (commune) where.commune = commune;
 
@@ -523,10 +509,10 @@ export class SubmissionsService {
   }
 
   /**
-   * Validation NIVEAU 1 par le SUPERVISEUR.
-   * Passe de SUBMITTED → SUPERVISOR_APPROVED.
+   * Validation par le COORDINATEUR (workflow simplifié à 1 niveau).
+   * Passe de SUBMITTED → VALIDATED.
    */
-  async approveLevel1(
+  async validate(
     id: string,
     user: Omit<User, 'password'>,
     comment?: string,
@@ -541,67 +527,9 @@ export class SubmissionsService {
 
     if (submission.status !== SubmissionStatus.SUBMITTED) {
       throw new BadRequestException(
-        'Cette soumission ne peut pas être validée niveau 1 (statut actuel : ' +
+        'Cette soumission ne peut pas être validée (statut actuel : ' +
           submission.status +
           ')',
-      );
-    }
-
-    // Vérifie que le superviseur est dans la même zone
-    if (user.role !== Role.ADMIN && submission.zoneId !== user.zoneId) {
-      throw new ForbiddenException(
-        'Vous ne pouvez valider que les soumissions de votre zone',
-      );
-    }
-
-    return this.prisma.submission.update({
-      where: { id },
-      data: {
-        status: SubmissionStatus.SUPERVISOR_APPROVED,
-        level1ValidatorId: user.id,
-        level1At: new Date(),
-        level1Comment: comment || null,
-        validationHistory: {
-          create: {
-            actorId: user.id,
-            action: ValidationAction.SUPERVISOR_APPROVED,
-            comment: comment || null,
-          },
-        },
-      },
-      select: SUBMISSION_SELECT,
-    });
-  }
-
-  /**
-   * Validation NIVEAU 2 par le COORDINATEUR.
-   * Passe de SUPERVISOR_APPROVED → VALIDATED.
-   */
-  async approveLevel2(
-    id: string,
-    user: Omit<User, 'password'>,
-    comment?: string,
-  ) {
-    const submission = await this.prisma.submission.findUnique({
-      where: { id },
-    });
-
-    if (!submission) {
-      throw new NotFoundException('Soumission non trouvée');
-    }
-
-    if (submission.status !== SubmissionStatus.SUPERVISOR_APPROVED) {
-      throw new BadRequestException(
-        'Cette soumission ne peut pas être validée niveau 2 (statut actuel : ' +
-          submission.status +
-          ')',
-      );
-    }
-
-    // Vérifie que le coordinateur est dans la même zone
-    if (user.role !== Role.ADMIN && submission.zoneId !== user.zoneId) {
-      throw new ForbiddenException(
-        'Vous ne pouvez valider que les soumissions de votre zone',
       );
     }
 
@@ -609,9 +537,9 @@ export class SubmissionsService {
       where: { id },
       data: {
         status: SubmissionStatus.VALIDATED,
-        level2ValidatorId: user.id,
-        level2At: new Date(),
-        level2Comment: comment || null,
+        validatorId: user.id,
+        validatedAt: new Date(),
+        validationComment: comment || null,
         validationHistory: {
           create: {
             actorId: user.id,
@@ -625,9 +553,10 @@ export class SubmissionsService {
   }
 
   /**
-   * Rejet NIVEAU 1 par le SUPERVISEUR.
+   * Rejet par le COORDINATEUR (workflow simplifié à 1 niveau).
+   * Passe de SUBMITTED → REJECTED.
    */
-  async rejectLevel1(
+  async reject(
     id: string,
     user: Omit<User, 'password'>,
     comment: string,
@@ -642,74 +571,23 @@ export class SubmissionsService {
 
     if (submission.status !== SubmissionStatus.SUBMITTED) {
       throw new BadRequestException(
-        'Cette soumission ne peut pas être rejetée au niveau 1',
-      );
-    }
-
-    if (user.role !== Role.ADMIN && submission.zoneId !== user.zoneId) {
-      throw new ForbiddenException(
-        'Vous ne pouvez rejeter que les soumissions de votre zone',
+        'Cette soumission ne peut pas être rejetée (statut actuel : ' +
+          submission.status +
+          ')',
       );
     }
 
     return this.prisma.submission.update({
       where: { id },
       data: {
-        status: SubmissionStatus.REJECTED_L1,
-        level1ValidatorId: user.id,
-        level1At: new Date(),
-        level1Comment: comment,
+        status: SubmissionStatus.REJECTED,
+        validatorId: user.id,
+        validatedAt: new Date(),
+        validationComment: comment,
         validationHistory: {
           create: {
             actorId: user.id,
-            action: ValidationAction.REJECTED_L1,
-            comment,
-          },
-        },
-      },
-      select: SUBMISSION_SELECT,
-    });
-  }
-
-  /**
-   * Rejet NIVEAU 2 par le COORDINATEUR.
-   */
-  async rejectLevel2(
-    id: string,
-    user: Omit<User, 'password'>,
-    comment: string,
-  ) {
-    const submission = await this.prisma.submission.findUnique({
-      where: { id },
-    });
-
-    if (!submission) {
-      throw new NotFoundException('Soumission non trouvée');
-    }
-
-    if (submission.status !== SubmissionStatus.SUPERVISOR_APPROVED) {
-      throw new BadRequestException(
-        'Cette soumission ne peut pas être rejetée au niveau 2',
-      );
-    }
-
-    if (user.role !== Role.ADMIN && submission.zoneId !== user.zoneId) {
-      throw new ForbiddenException(
-        'Vous ne pouvez rejeter que les soumissions de votre zone',
-      );
-    }
-
-    return this.prisma.submission.update({
-      where: { id },
-      data: {
-        status: SubmissionStatus.REJECTED_L2,
-        level2ValidatorId: user.id,
-        level2At: new Date(),
-        level2Comment: comment,
-        validationHistory: {
-          create: {
-            actorId: user.id,
-            action: ValidationAction.REJECTED_L2,
+            action: ValidationAction.REJECTED,
             comment,
           },
         },
@@ -724,15 +602,14 @@ export class SubmissionsService {
    */
   async getStats(
     user: Omit<User, 'password'>,
-    zoneId?: string,
+    clusterId?: string,
   ) {
     // ── Cache des KPIs ──
-    // Clé UNIQUE par contexte : le résultat dépend du rôle (filtre de zone
-    // différent), de l'utilisateur, et de la zone éventuellement filtrée.
-    // Deux admins sur des zones différentes ne doivent pas partager la clé.
-    const cacheKey = `dashboard:stats:${user.role}:${user.id}:${zoneId || 'all'}`;
+    // Clé UNIQUE par contexte : le résultat dépend du rôle (filtre de cluster
+    // différent), de l'utilisateur, et du cluster éventuellement filtré.
+    const cacheKey = `dashboard:stats:${user.role}:${user.id}:${clusterId || 'all'}`;
 
-    // 1) Si présent en cache (TTL 5 min non expiré) → on évite les ~13 COUNT.
+    // 1) Si présent en cache (TTL 5 min non expiré) → on évite les COUNT.
     const cached = await this.cache.get<StatsResult>(cacheKey);
     if (cached) {
       this.logger.debug(`KPIs servis depuis le cache (${cacheKey})`);
@@ -740,38 +617,34 @@ export class SubmissionsService {
     }
     this.logger.debug(`KPIs recalculés — COUNT en base (${cacheKey})`);
 
-    // Déterminer le filtre de zone
-    let effectiveZoneId: string | undefined;
-    if (user.role === Role.COORDINATEUR) {
-      effectiveZoneId = user.zoneId || undefined;
-    } else if (user.role === Role.ADMIN && zoneId) {
-      effectiveZoneId = zoneId;
+    // Déterminer le filtre de cluster
+    let effectiveClusterId: string | undefined;
+    if ((user.role === Role.COORDINATEUR || user.role === Role.ADMIN) && clusterId) {
+      effectiveClusterId = clusterId;
+    } else if (user.role === Role.SUPERVISEUR && user.clusterId) {
+      effectiveClusterId = user.clusterId;
     }
 
     const where: Record<string, unknown> = {};
-    if (effectiveZoneId) {
-      where.zoneId = effectiveZoneId;
+    if (effectiveClusterId) {
+      where.clusterId = effectiveClusterId;
     }
 
-    // Compter par statut
+    // Compter par statut (workflow simplifié)
     const [
       total,
       draft,
       submitted,
-      supervisorApproved,
       validated,
-      rejectedL1,
-      rejectedL2,
+      rejected,
       prospects,
       marchands,
     ] = await Promise.all([
       this.prisma.submission.count({ where }),
       this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.DRAFT } }),
       this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.SUBMITTED } }),
-      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.SUPERVISOR_APPROVED } }),
       this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.VALIDATED } }),
-      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.REJECTED_L1 } }),
-      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.REJECTED_L2 } }),
+      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.REJECTED } }),
       this.prisma.submission.count({ where: { ...where, type: SubmissionType.PROSPECT } }),
       this.prisma.submission.count({ where: { ...where, type: SubmissionType.MARCHAND } }),
     ]);
@@ -798,19 +671,13 @@ export class SubmissionsService {
     // Taux de validation
     const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
 
-    // En attente de validation
-    const pendingL1 = submitted;
-    const pendingL2 = supervisorApproved;
-
     const result: StatsResult = {
       total,
       byStatus: {
         draft,
         submitted,
-        supervisorApproved,
         validated,
-        rejectedL1,
-        rejectedL2,
+        rejected,
       },
       byType: {
         prospects,
@@ -825,15 +692,10 @@ export class SubmissionsService {
         validated: weekValidated,
       },
       validationRate,
-      pending: {
-        level1: pendingL1,
-        level2: pendingL2,
-      },
+      pending: submitted,
     };
 
-    // 2) Mise en cache pour 5 min (TTL du module). Le prochain appel dans la
-    // fenêtre lira ce résultat sans relancer les COUNT. Pas d'invalidation
-    // manuelle : le TTL gère la fraîcheur.
+    // 2) Mise en cache pour 5 min (TTL du module).
     await this.cache.set(cacheKey, result);
 
     return result;
@@ -889,18 +751,7 @@ export class SubmissionsService {
     const photos = dto.photos || [];
     const categories = photos.map((p) => p.category);
 
-    if (dto.type === SubmissionType.PROSPECT) {
-      if (!categories.includes('APP_SCREEN')) {
-        throw new BadRequestException(
-          'Photo écran app (APP_SCREEN) obligatoire pour un prospect',
-        );
-      }
-      if (!categories.includes('ID_DOCUMENT')) {
-        throw new BadRequestException(
-          'Photo CNI (ID_DOCUMENT) obligatoire pour un prospect',
-        );
-      }
-    }
+    // Pas de photos obligatoires pour les prospects
 
     if (dto.type === SubmissionType.MARCHAND) {
       if (!categories.includes('STOREFRONT')) {
@@ -925,7 +776,7 @@ export class SubmissionsService {
    * Vérifie que l'utilisateur a le droit de voir la soumission.
    */
   private checkAccessToSubmission(
-    submission: { commercialId?: string; zoneId?: string | null },
+    submission: { commercialId?: string; clusterId?: string | null },
     user: Omit<User, 'password'>,
   ) {
     if (user.role === Role.ADMIN) return;
@@ -936,8 +787,10 @@ export class SubmissionsService {
       }
     }
 
-    if (user.role === Role.SUPERVISEUR || user.role === Role.COORDINATEUR) {
-      if (submission.zoneId !== user.zoneId) {
+    if (user.role === Role.COORDINATEUR) return; // compte global
+
+    if (user.role === Role.SUPERVISEUR) {
+      if (submission.clusterId !== user.clusterId) {
         throw new ForbiddenException('Accès refusé à cette soumission');
       }
     }

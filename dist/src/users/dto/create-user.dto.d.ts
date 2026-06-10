@@ -6,7 +6,6 @@ export declare class CreateUserDto {
     password: string;
     role: Role;
     status?: AgentStatus;
-    zoneId?: string;
+    clusterId?: string;
     supervisorId?: string;
-    secteurId?: string;
 }

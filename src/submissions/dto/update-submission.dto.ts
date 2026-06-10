@@ -76,11 +76,7 @@ export class UpdateSubmissionDto {
 
   @IsOptional()
   @IsString()
-  phoneType?: string;
-
-  @IsOptional()
-  @IsString()
-  bankAccount?: string;
+  sponsorCode?: string;
 
   @IsOptional()
   @IsString()

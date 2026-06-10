@@ -17,7 +17,6 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const roles_decorator_1 = require("../common/decorators/roles.decorator");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
-const public_decorator_1 = require("../common/decorators/public.decorator");
 const users_service_1 = require("./users.service");
 const create_user_dto_1 = require("./dto/create-user.dto");
 const update_user_dto_1 = require("./dto/update-user.dto");
@@ -60,12 +59,6 @@ let UsersController = class UsersController {
     }
     removeFromTeam(currentUser, id) {
         return this.usersService.removeFromTeam(id, currentUser);
-    }
-    testPassword(dto) {
-        return this.usersService.testPassword(dto.phone, dto.password);
-    }
-    debugPasswords() {
-        return this.usersService.debugPasswords();
     }
 };
 exports.UsersController = UsersController;
@@ -166,21 +159,6 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "removeFromTeam", null);
-__decorate([
-    (0, common_1.Post)('test-password'),
-    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], UsersController.prototype, "testPassword", null);
-__decorate([
-    (0, public_decorator_1.Public)(),
-    (0, common_1.Get)('debug-passwords'),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
-], UsersController.prototype, "debugPasswords", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

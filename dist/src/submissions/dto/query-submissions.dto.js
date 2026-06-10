@@ -16,7 +16,7 @@ const pagination_dto_1 = require("../../common/dto/pagination.dto");
 class QuerySubmissionsDto extends pagination_dto_1.PaginationDto {
     type;
     status;
-    zoneId;
+    clusterId;
     commercialId;
     commune;
     search;
@@ -36,7 +36,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)('4'),
     __metadata("design:type", String)
-], QuerySubmissionsDto.prototype, "zoneId", void 0);
+], QuerySubmissionsDto.prototype, "clusterId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsUUID)('4'),

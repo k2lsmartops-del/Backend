@@ -41,14 +41,6 @@ const adapter = new adapter_pg_1.PrismaPg({ connectionString: process.env.DATABA
 const prisma = new client_1.PrismaClient({ adapter });
 async function main() {
     const password = await bcrypt.hash('password123', 10);
-    const zone = await prisma.zone.upsert({
-        where: { name: 'Zone Abidjan-Sud' },
-        update: {},
-        create: {
-            name: 'Zone Abidjan-Sud',
-            description: 'Zone couvrant Marcory, Treichville, Port-Bouet',
-        },
-    });
     await prisma.user.upsert({
         where: { phone: '0700000001' },
         update: {},
@@ -63,7 +55,7 @@ async function main() {
             isActive: true,
         },
     });
-    const coordinateur = await prisma.user.upsert({
+    await prisma.user.upsert({
         where: { phone: '0700000002' },
         update: {},
         create: {
@@ -75,12 +67,15 @@ async function main() {
             role: client_1.Role.COORDINATEUR,
             status: client_1.AgentStatus.ACTIF,
             isActive: true,
-            zoneId: zone.id,
         },
     });
-    await prisma.zone.update({
-        where: { id: zone.id },
-        data: { coordinatorId: coordinateur.id },
+    const cluster = await prisma.cluster.upsert({
+        where: { name: 'Cluster Abidjan-Sud' },
+        update: {},
+        create: {
+            name: 'Cluster Abidjan-Sud',
+            description: 'Cluster couvrant Marcory, Treichville, Port-Bouet',
+        },
     });
     const superviseur = await prisma.user.upsert({
         where: { phone: '0700000003' },
@@ -94,8 +89,12 @@ async function main() {
             role: client_1.Role.SUPERVISEUR,
             status: client_1.AgentStatus.ACTIF,
             isActive: true,
-            zoneId: zone.id,
+            clusterId: cluster.id,
         },
+    });
+    await prisma.cluster.update({
+        where: { id: cluster.id },
+        data: { supervisorId: superviseur.id },
     });
     await prisma.user.upsert({
         where: { phone: '0700000004' },
@@ -109,7 +108,7 @@ async function main() {
             role: client_1.Role.COMMERCIAL,
             status: client_1.AgentStatus.ACTIF,
             isActive: true,
-            zoneId: zone.id,
+            clusterId: cluster.id,
             supervisorId: superviseur.id,
         },
     });

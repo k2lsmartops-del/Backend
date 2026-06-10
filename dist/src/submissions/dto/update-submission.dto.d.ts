@@ -15,8 +15,7 @@ export declare class UpdateSubmissionDto {
     prospectGender?: string;
     prospectAge?: string;
     appStatus?: string;
-    phoneType?: string;
-    bankAccount?: string;
+    sponsorCode?: string;
     observations?: string;
     merchantName?: string;
     merchantOwner?: string;

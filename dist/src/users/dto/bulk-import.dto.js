@@ -19,7 +19,6 @@ class BulkImportRowDto {
     email;
     password;
     zone;
-    secteur;
     supervisorPhone;
 }
 exports.BulkImportRowDto = BulkImportRowDto;
@@ -50,11 +49,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], BulkImportRowDto.prototype, "zone", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], BulkImportRowDto.prototype, "secteur", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

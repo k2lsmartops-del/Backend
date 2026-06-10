@@ -5,7 +5,6 @@ export declare class QueryUsersDto extends PaginationDto {
     role?: Role;
     status?: AgentStatus;
     isActive?: boolean;
-    zoneId?: string;
+    clusterId?: string;
     supervisorId?: string;
-    secteurId?: string;
 }

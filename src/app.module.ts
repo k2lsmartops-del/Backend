@@ -9,8 +9,7 @@ import { UsersModule } from './users/users.module';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { PrismaModule } from './prisma/prisma.module';
-import { ZonesModule } from './zones/zones.module';
-import { SecteursModule } from './secteurs/secteurs.module';
+import { ClustersModule } from './clusters/clusters.module';
 import { CommunesModule } from './communes/communes.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -48,8 +47,7 @@ import { validate } from './config/env.validation';
     // Module uploads (signature Cloudinary)
     UploadsModule,
     // Modules gestion territoriale
-    ZonesModule,
-    SecteursModule,
+    ClustersModule,
     CommunesModule,
   ],
   controllers: [AppController],

@@ -18,8 +18,7 @@ export declare class CreateSubmissionDto {
     prospectGender?: string;
     prospectAge?: number;
     appStatus?: AppStatus;
-    phoneType?: string;
-    bankAccount?: string;
+    sponsorCode?: string;
     observations?: string;
     merchantName?: string;
     merchantOwner?: string;

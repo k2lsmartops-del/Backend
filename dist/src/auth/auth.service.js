@@ -69,8 +69,7 @@ let AuthService = class AuthService {
                 OR: [{ phone: dto.identifiant }, { email: dto.identifiant }],
             },
             include: {
-                zone: { select: { id: true, name: true } },
-                secteur: { select: { id: true, name: true } },
+                cluster: { select: { id: true, name: true } },
                 supervisor: { select: { id: true, fullName: true, matricule: true } },
             },
         });
@@ -110,8 +109,7 @@ let AuthService = class AuthService {
             include: {
                 user: {
                     include: {
-                        zone: { select: { id: true, name: true } },
-                        secteur: { select: { id: true, name: true } },
+                        cluster: { select: { id: true, name: true } },
                         supervisor: { select: { id: true, fullName: true, matricule: true } },
                     },
                 },

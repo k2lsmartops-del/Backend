@@ -12,9 +12,6 @@ export declare class AuthController {
     }>;
     getMe(user: Omit<User, 'password'>): Omit<{
         id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         matricule: string;
         email: string | null;
         phone: string;
@@ -22,8 +19,10 @@ export declare class AuthController {
         password: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
-        zoneId: string | null;
-        secteurId: string | null;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        clusterId: string | null;
         supervisorId: string | null;
     }, "password">;
 }

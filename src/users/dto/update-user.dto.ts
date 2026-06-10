@@ -53,7 +53,4 @@ export class UpdateUserDto {
   @IsUUID('4', { message: 'ID de superviseur invalide' })
   supervisorId?: string | null;
 
-  @IsOptional()
-  @IsUUID('4', { message: 'ID de secteur invalide' })
-  secteurId?: string | null;
 }

@@ -11,7 +11,6 @@ import {
 import { Role, User } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { Public } from '../common/decorators/public.decorator';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -21,7 +20,7 @@ import { BulkImportDto } from './dto/bulk-import.dto';
 /**
  * Contrôleur de gestion des utilisateurs.
  * ADMIN et COORDINATEUR peuvent gérer tous les utilisateurs.
- * SUPERVISEUR peut gérer uniquement les commerciaux de son secteur.
+ * SUPERVISEUR peut gérer uniquement ses commerciaux.
  */
 @Controller('users')
 export class UsersController {
@@ -39,7 +38,7 @@ export class UsersController {
 
   /**
    * POST /users/bulk-import — Import en masse d'une équipe complète.
-   * Réservé à l'ADMIN. Crée coordinateurs/zones, superviseurs/secteurs et commerciaux.
+   * Réservé à l'ADMIN. Crée coordinateurs/clusters, superviseurs et commerciaux.
    */
   @Post('bulk-import')
   @Roles(Role.ADMIN)
@@ -49,7 +48,7 @@ export class UsersController {
 
   /**
    * POST /users — Créer un utilisateur.
-   * SUPERVISEUR ne peut créer que des COMMERCIAL dans son secteur.
+   * SUPERVISEUR ne peut créer que des COMMERCIAL dans son cluster.
    */
   @Post()
   @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
@@ -150,7 +149,7 @@ export class UsersController {
 
   /**
    * PATCH /users/:id/remove-from-team — Retirer un commercial de l'équipe.
-   * Met supervisorId et secteurId à null.
+   * Met supervisorId à null.
    */
   @Patch(':id/remove-from-team')
   @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
@@ -161,26 +160,4 @@ export class UsersController {
     return this.usersService.removeFromTeam(id, currentUser);
   }
 
-  /**
-   * POST /users/test-password — DIAGNOSTIC TEMPORAIRE
-   * Teste si un mot de passe correspond à un utilisateur (par téléphone).
-   * À SUPPRIMER en production.
-   */
-  @Post('test-password')
-  @Roles(Role.ADMIN)
-  testPassword(@Body() dto: { phone: string; password: string }) {
-    return this.usersService.testPassword(dto.phone, dto.password);
-  }
-
-  /**
-   * GET /users/debug-passwords — DIAGNOSTIC TEMPORAIRE
-   * Vérifie tous les utilisateurs importés et teste les mots de passe croisés.
-   * À SUPPRIMER en production.
-   * ATTENTION: Endpoint PUBLIC pour debug
-   */
-  @Public()
-  @Get('debug-passwords')
-  debugPasswords() {
-    return this.usersService.debugPasswords();
-  }
 }
