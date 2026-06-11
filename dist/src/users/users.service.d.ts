@@ -349,4 +349,7 @@ export declare class UsersService {
         installedActivatedCount: number;
         note: string;
     }>;
+    changePassword(userId: string, newPassword: string): Promise<{
+        message: string;
+    }>;
 }

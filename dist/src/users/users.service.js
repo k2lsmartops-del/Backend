@@ -737,6 +737,23 @@ let UsersService = class UsersService {
             note: 'Les prix par type d\'installation sont à définir. Le calcul du paiement se fait manuellement.',
         };
     }
+    async changePassword(userId, newPassword) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (!newPassword || newPassword.length < 8) {
+            throw new common_1.BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword },
+        });
+        return { message: 'Mot de passe modifié avec succès' };
+    }
 };
 exports.UsersService = UsersService;
 exports.UsersService = UsersService = __decorate([

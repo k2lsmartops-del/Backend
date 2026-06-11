@@ -319,4 +319,9 @@ export declare class UsersController {
         installedActivatedCount: number;
         note: string;
     }>;
+    changePassword(currentUser: Omit<User, 'password'>, id: string, body: {
+        password: string;
+    }): Promise<{
+        message: string;
+    }>;
 }

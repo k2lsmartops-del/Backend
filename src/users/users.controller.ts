@@ -186,4 +186,22 @@ export class UsersController {
     return this.usersService.getPayment(id, currentUser);
   }
 
+  /**
+   * PATCH /users/:id/change-password — Changer son propre mot de passe.
+   * Accessible à tous les utilisateurs authentifiés (ADMIN, COORDINATEUR, SUPERVISEUR, COMMERCIAL).
+   * L'utilisateur ne peut modifier que son propre mot de passe.
+   */
+  @Patch(':id/change-password')
+  changePassword(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { password: string },
+  ) {
+    // Vérifier que l'utilisateur modifie son propre mot de passe
+    if (id !== currentUser.id) {
+      throw new Error('Vous ne pouvez modifier que votre propre mot de passe');
+    }
+    return this.usersService.changePassword(id, body.password);
+  }
+
 }

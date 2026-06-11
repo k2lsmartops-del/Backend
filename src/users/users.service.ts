@@ -1023,4 +1023,35 @@ export class UsersService {
       note: 'Les prix par type d\'installation sont à définir. Le calcul du paiement se fait manuellement.',
     };
   }
+
+  /**
+   * Permet à un utilisateur de changer son propre mot de passe.
+   * Accessible à tous les utilisateurs authentifiés.
+   */
+  async changePassword(userId: string, newPassword: string) {
+    // Vérifier que l'utilisateur existe
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // Valider le nouveau mot de passe
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
+    }
+
+    // Hasher le nouveau mot de passe
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Mettre à jour le mot de passe
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Mot de passe modifié avec succès' };
+  }
 }
