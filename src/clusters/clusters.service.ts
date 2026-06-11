@@ -273,4 +273,147 @@ export class ClustersService {
       );
     }
   }
+
+  /**
+   * Assigne ou remplace le superviseur d'un cluster.
+   * Met automatiquement à jour TOUS les commerciaux du cluster pour qu'ils
+   * pointent vers le nouveau superviseur.
+   *
+   * Cas couverts :
+   *  - Cluster sans superviseur → on assigne pour la 1ère fois
+   *  - Remplacement d'un superviseur existant → l'ancien est libéré, le nouveau prend
+   *  - Le nouveau superviseur dirigeait déjà un autre cluster → refus (conflit)
+   *
+   * @throws BadRequestException si le user n'est pas un SUPERVISEUR
+   * @throws ConflictException si le superviseur dirige déjà un autre cluster
+   * @throws NotFoundException si le cluster ou le superviseur n'existe pas
+   */
+  async assignSupervisor(clusterId: string, newSupervisorId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Vérifier que le cluster existe
+      const cluster = await tx.cluster.findUnique({
+        where: { id: clusterId },
+        select: { id: true, name: true, supervisorId: true },
+      });
+      if (!cluster) {
+        throw new NotFoundException(`Cluster ${clusterId} introuvable`);
+      }
+
+      // 2. Vérifier que le nouveau superviseur existe et a le bon rôle
+      const newSup = await tx.user.findUnique({
+        where: { id: newSupervisorId },
+        select: { id: true, fullName: true, role: true, clusterId: true },
+      });
+      if (!newSup) {
+        throw new NotFoundException(`Utilisateur ${newSupervisorId} introuvable`);
+      }
+      if (newSup.role !== Role.SUPERVISEUR) {
+        throw new BadRequestException(
+          `L'utilisateur ${newSup.fullName} n'est pas un SUPERVISEUR (rôle actuel : ${newSup.role})`,
+        );
+      }
+
+      // 3. Vérifier qu'il ne dirige pas déjà un AUTRE cluster
+      const otherCluster = await tx.cluster.findFirst({
+        where: { supervisorId: newSupervisorId, id: { not: clusterId } },
+        select: { id: true, name: true },
+      });
+      if (otherCluster) {
+        throw new ConflictException(
+          `${newSup.fullName} dirige déjà ${otherCluster.name}. Libérez-le d'abord.`,
+        );
+      }
+
+      // 4. Récupérer l'ancien superviseur s'il existe (pour le libérer après)
+      const ancienSupervisorId = cluster.supervisorId;
+
+      // 5. Mettre à jour le cluster avec le nouveau superviseur
+      await tx.cluster.update({
+        where: { id: clusterId },
+        data: { supervisorId: newSupervisorId },
+      });
+
+      // 6. Mettre à jour le nouveau superviseur (lui attribuer le cluster)
+      await tx.user.update({
+        where: { id: newSupervisorId },
+        data: { clusterId: clusterId },
+      });
+
+      // 7. Libérer l'ancien superviseur s'il existait et est différent du nouveau
+      if (ancienSupervisorId && ancienSupervisorId !== newSupervisorId) {
+        await tx.user.update({
+          where: { id: ancienSupervisorId },
+          data: { clusterId: null },
+        });
+      }
+
+      // 8. CASCADE CRITIQUE : mettre à jour TOUS les commerciaux du cluster
+      //    pour qu'ils pointent vers le nouveau superviseur
+      const updateResult = await tx.user.updateMany({
+        where: {
+          clusterId: clusterId,
+          role: Role.COMMERCIAL,
+        },
+        data: { supervisorId: newSupervisorId },
+      });
+
+      console.log(
+        `[Cluster] ${cluster.name}: Superviseur ${newSup.fullName} assigné, ${updateResult.count} commerciaux mis à jour`,
+      );
+
+      return {
+        clusterId,
+        clusterName: cluster.name,
+        newSupervisorId,
+        newSupervisorName: newSup.fullName,
+        ancienSupervisorId: ancienSupervisorId,
+        commerciauxUpdated: updateResult.count,
+      };
+    });
+  }
+
+  /**
+   * Retire le superviseur d'un cluster.
+   * Refuse si le cluster contient des commerciaux actifs.
+   * (Forcer l'admin à assigner un nouveau superviseur d'abord, plutôt
+   * que de laisser des commerciaux orphelins.)
+   */
+  async removeSupervisor(clusterId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const cluster = await tx.cluster.findUnique({
+        where: { id: clusterId },
+        select: { id: true, name: true, supervisorId: true },
+      });
+      if (!cluster) throw new NotFoundException(`Cluster ${clusterId} introuvable`);
+      if (!cluster.supervisorId) {
+        throw new BadRequestException(`Le cluster ${cluster.name} n'a pas de superviseur`);
+      }
+
+      // Vérifier qu'il n'y a pas de commerciaux actifs
+      const nbCommerciaux = await tx.user.count({
+        where: { clusterId, role: Role.COMMERCIAL, isActive: true },
+      });
+      if (nbCommerciaux > 0) {
+        throw new ConflictException(
+          `Impossible de retirer le superviseur : ${nbCommerciaux} commerciaux actifs dans ${cluster.name}. Assignez d'abord un nouveau superviseur.`,
+        );
+      }
+
+      // Libérer le superviseur (clusterId à null)
+      await tx.user.update({
+        where: { id: cluster.supervisorId },
+        data: { clusterId: null },
+      });
+
+      // Retirer du cluster
+      await tx.cluster.update({
+        where: { id: clusterId },
+        data: { supervisorId: null },
+      });
+
+      console.log(`[Cluster] ${cluster.name}: Superviseur retiré`);
+
+      return { clusterId, clusterName: cluster.name, message: 'Superviseur retiré avec succès' };
+    });
+  }
 }

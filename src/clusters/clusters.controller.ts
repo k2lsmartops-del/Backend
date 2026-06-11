@@ -14,6 +14,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ClustersService } from './clusters.service';
 import { CreateClusterDto } from './dto/create-cluster.dto';
 import { UpdateClusterDto } from './dto/update-cluster.dto';
+import { AssignSupervisorDto } from './dto/assign-supervisor.dto';
 
 @Controller('clusters')
 export class ClustersController {
@@ -44,6 +45,29 @@ export class ClustersController {
     @Body() dto: UpdateClusterDto,
   ) {
     return this.clustersService.update(id, dto);
+  }
+
+  /**
+   * Assigne ou remplace le superviseur d'un cluster.
+   * Met automatiquement à jour tous les commerciaux du cluster.
+   */
+  @Patch(':id/supervisor')
+  @Roles(Role.ADMIN)
+  assignSupervisor(
+    @Param('id', ParseUUIDPipe) clusterId: string,
+    @Body() dto: AssignSupervisorDto,
+  ) {
+    return this.clustersService.assignSupervisor(clusterId, dto.supervisorId);
+  }
+
+  /**
+   * Retire le superviseur d'un cluster.
+   * Refuse si le cluster contient des commerciaux actifs.
+   */
+  @Delete(':id/supervisor')
+  @Roles(Role.ADMIN)
+  removeSupervisor(@Param('id', ParseUUIDPipe) clusterId: string) {
+    return this.clustersService.removeSupervisor(clusterId);
   }
 
   @Delete(':id')

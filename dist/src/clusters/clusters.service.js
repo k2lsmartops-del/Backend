@@ -202,6 +202,94 @@ let ClustersService = class ClustersService {
             throw new common_1.BadRequestException(`Ce superviseur est déjà affecté au cluster "${otherCluster.name}"`);
         }
     }
+    async assignSupervisor(clusterId, newSupervisorId) {
+        return this.prisma.$transaction(async (tx) => {
+            const cluster = await tx.cluster.findUnique({
+                where: { id: clusterId },
+                select: { id: true, name: true, supervisorId: true },
+            });
+            if (!cluster) {
+                throw new common_1.NotFoundException(`Cluster ${clusterId} introuvable`);
+            }
+            const newSup = await tx.user.findUnique({
+                where: { id: newSupervisorId },
+                select: { id: true, fullName: true, role: true, clusterId: true },
+            });
+            if (!newSup) {
+                throw new common_1.NotFoundException(`Utilisateur ${newSupervisorId} introuvable`);
+            }
+            if (newSup.role !== client_1.Role.SUPERVISEUR) {
+                throw new common_1.BadRequestException(`L'utilisateur ${newSup.fullName} n'est pas un SUPERVISEUR (rôle actuel : ${newSup.role})`);
+            }
+            const otherCluster = await tx.cluster.findFirst({
+                where: { supervisorId: newSupervisorId, id: { not: clusterId } },
+                select: { id: true, name: true },
+            });
+            if (otherCluster) {
+                throw new common_1.ConflictException(`${newSup.fullName} dirige déjà ${otherCluster.name}. Libérez-le d'abord.`);
+            }
+            const ancienSupervisorId = cluster.supervisorId;
+            await tx.cluster.update({
+                where: { id: clusterId },
+                data: { supervisorId: newSupervisorId },
+            });
+            await tx.user.update({
+                where: { id: newSupervisorId },
+                data: { clusterId: clusterId },
+            });
+            if (ancienSupervisorId && ancienSupervisorId !== newSupervisorId) {
+                await tx.user.update({
+                    where: { id: ancienSupervisorId },
+                    data: { clusterId: null },
+                });
+            }
+            const updateResult = await tx.user.updateMany({
+                where: {
+                    clusterId: clusterId,
+                    role: client_1.Role.COMMERCIAL,
+                },
+                data: { supervisorId: newSupervisorId },
+            });
+            console.log(`[Cluster] ${cluster.name}: Superviseur ${newSup.fullName} assigné, ${updateResult.count} commerciaux mis à jour`);
+            return {
+                clusterId,
+                clusterName: cluster.name,
+                newSupervisorId,
+                newSupervisorName: newSup.fullName,
+                ancienSupervisorId: ancienSupervisorId,
+                commerciauxUpdated: updateResult.count,
+            };
+        });
+    }
+    async removeSupervisor(clusterId) {
+        return this.prisma.$transaction(async (tx) => {
+            const cluster = await tx.cluster.findUnique({
+                where: { id: clusterId },
+                select: { id: true, name: true, supervisorId: true },
+            });
+            if (!cluster)
+                throw new common_1.NotFoundException(`Cluster ${clusterId} introuvable`);
+            if (!cluster.supervisorId) {
+                throw new common_1.BadRequestException(`Le cluster ${cluster.name} n'a pas de superviseur`);
+            }
+            const nbCommerciaux = await tx.user.count({
+                where: { clusterId, role: client_1.Role.COMMERCIAL, isActive: true },
+            });
+            if (nbCommerciaux > 0) {
+                throw new common_1.ConflictException(`Impossible de retirer le superviseur : ${nbCommerciaux} commerciaux actifs dans ${cluster.name}. Assignez d'abord un nouveau superviseur.`);
+            }
+            await tx.user.update({
+                where: { id: cluster.supervisorId },
+                data: { clusterId: null },
+            });
+            await tx.cluster.update({
+                where: { id: clusterId },
+                data: { supervisorId: null },
+            });
+            console.log(`[Cluster] ${cluster.name}: Superviseur retiré`);
+            return { clusterId, clusterName: cluster.name, message: 'Superviseur retiré avec succès' };
+        });
+    }
 };
 exports.ClustersService = ClustersService;
 exports.ClustersService = ClustersService = __decorate([

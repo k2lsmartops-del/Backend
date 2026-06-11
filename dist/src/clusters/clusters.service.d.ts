@@ -165,4 +165,17 @@ export declare class ClustersService {
         description: string | null;
     }>;
     private validateSupervisor;
+    assignSupervisor(clusterId: string, newSupervisorId: string): Promise<{
+        clusterId: string;
+        clusterName: string;
+        newSupervisorId: string;
+        newSupervisorName: string;
+        ancienSupervisorId: string | null;
+        commerciauxUpdated: number;
+    }>;
+    removeSupervisor(clusterId: string): Promise<{
+        clusterId: string;
+        clusterName: string;
+        message: string;
+    }>;
 }

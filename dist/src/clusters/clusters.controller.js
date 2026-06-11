@@ -20,6 +20,7 @@ const current_user_decorator_1 = require("../common/decorators/current-user.deco
 const clusters_service_1 = require("./clusters.service");
 const create_cluster_dto_1 = require("./dto/create-cluster.dto");
 const update_cluster_dto_1 = require("./dto/update-cluster.dto");
+const assign_supervisor_dto_1 = require("./dto/assign-supervisor.dto");
 let ClustersController = class ClustersController {
     clustersService;
     constructor(clustersService) {
@@ -36,6 +37,12 @@ let ClustersController = class ClustersController {
     }
     update(id, dto) {
         return this.clustersService.update(id, dto);
+    }
+    assignSupervisor(clusterId, dto) {
+        return this.clustersService.assignSupervisor(clusterId, dto.supervisorId);
+    }
+    removeSupervisor(clusterId) {
+        return this.clustersService.removeSupervisor(clusterId);
     }
     remove(id) {
         return this.clustersService.remove(id);
@@ -75,6 +82,23 @@ __decorate([
     __metadata("design:paramtypes", [String, update_cluster_dto_1.UpdateClusterDto]),
     __metadata("design:returntype", void 0)
 ], ClustersController.prototype, "update", null);
+__decorate([
+    (0, common_1.Patch)(':id/supervisor'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, assign_supervisor_dto_1.AssignSupervisorDto]),
+    __metadata("design:returntype", void 0)
+], ClustersController.prototype, "assignSupervisor", null);
+__decorate([
+    (0, common_1.Delete)(':id/supervisor'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    __param(0, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ClustersController.prototype, "removeSupervisor", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),

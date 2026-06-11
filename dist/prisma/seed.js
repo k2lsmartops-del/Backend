@@ -192,6 +192,27 @@ async function main() {
                 'Agban', 'Locodjro', 'Santé', 'Abobo-Doumé', 'Boribana',
             ],
         },
+        {
+            name: 'Songon',
+            quartiers: [
+                'Songon-Agban', 'Songon-Dagbé', 'Songon-Kassemblé', 'Songon-Mbratté',
+                'Songon-Agban Village', 'Songon-Téké', 'Abadjin-Kouté', 'Abadjin-Doumé',
+            ],
+        },
+        {
+            name: 'Anyama',
+            quartiers: [
+                'Anyama-Adjamé', 'Anyama-Gare', 'RAN', 'Anyama-Zossonkoi',
+                'Anyama-Ebimpé', 'PK18', 'Anyama-Ahouabo', 'Anyama-Braffedon',
+            ],
+        },
+        {
+            name: 'Bingerville',
+            quartiers: [
+                'Bingerville-Centre', 'Cité Batim', 'Cité Siporex', 'Gbagba',
+                'Akouai-Santé', 'Eloka', 'Adjamé-Bingerville', 'Cité Résidentielle',
+            ],
+        },
     ];
     for (const c of communesData) {
         const commune = await prisma.commune.upsert({

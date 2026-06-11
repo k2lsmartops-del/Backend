@@ -2,6 +2,7 @@ import { User } from '@prisma/client';
 import { ClustersService } from './clusters.service';
 import { CreateClusterDto } from './dto/create-cluster.dto';
 import { UpdateClusterDto } from './dto/update-cluster.dto';
+import { AssignSupervisorDto } from './dto/assign-supervisor.dto';
 export declare class ClustersController {
     private clustersService;
     constructor(clustersService: ClustersService);
@@ -129,6 +130,19 @@ export declare class ClustersController {
         supervisorId: string | null;
         name: string;
         description: string | null;
+    }>;
+    assignSupervisor(clusterId: string, dto: AssignSupervisorDto): Promise<{
+        clusterId: string;
+        clusterName: string;
+        newSupervisorId: string;
+        newSupervisorName: string;
+        ancienSupervisorId: string | null;
+        commerciauxUpdated: number;
+    }>;
+    removeSupervisor(clusterId: string): Promise<{
+        clusterId: string;
+        clusterName: string;
+        message: string;
     }>;
     remove(id: string): Promise<{
         id: string;
