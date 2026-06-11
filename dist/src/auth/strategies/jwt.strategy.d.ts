@@ -33,6 +33,10 @@ export declare class JwtStrategy extends JwtStrategy_base {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
         clusterId: string | null;
         supervisorId: string | null;
     }>;

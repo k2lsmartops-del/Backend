@@ -74,7 +74,7 @@ export class SubmissionsController {
   // servie depuis le cache mémoire dans la majorité des cas (TTL 5 min).
   @Throttle({ default: { limit: 200, ttl: 60000 } })
   @Get('stats')
-  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR, Role.CLIENT)
   getStats(
     @CurrentUser() user: Omit<User, 'password'>,
     @Query('clusterId') clusterId?: string,
@@ -85,11 +85,13 @@ export class SubmissionsController {
   /**
    * GET /submissions — Liste paginée des soumissions.
    * Filtrée automatiquement selon le rôle de l'utilisateur.
+   * CLIENT ne voit que les soumissions validées.
    */
   // 200/min : liste consultée fréquemment (polling possible côté frontend,
   // pagination, rafraîchissement après validation).
   @Throttle({ default: { limit: 200, ttl: 60000 } })
   @Get()
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR, Role.COMMERCIAL, Role.CLIENT)
   findAll(
     @Query() query: QuerySubmissionsDto,
     @CurrentUser() user: Omit<User, 'password'>,

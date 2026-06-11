@@ -213,6 +213,9 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             case client_1.Role.COORDINATEUR:
             case client_1.Role.ADMIN:
                 break;
+            case client_1.Role.CLIENT:
+                where.status = client_1.SubmissionStatus.VALIDATED;
+                break;
             default:
                 where.commercialId = user.id;
         }
@@ -431,6 +434,9 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
         if (effectiveClusterId) {
             where.clusterId = effectiveClusterId;
         }
+        if (user.role === client_1.Role.CLIENT) {
+            where.status = client_1.SubmissionStatus.VALIDATED;
+        }
         const [total, draft, submitted, validated, rejected, prospects, marchands,] = await Promise.all([
             this.prisma.submission.count({ where }),
             this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.DRAFT } }),
@@ -456,6 +462,52 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             this.prisma.submission.count({ where: { ...weekWhere, status: client_1.SubmissionStatus.VALIDATED } }),
         ]);
         const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
+        const byCommune = await this.prisma.submission.groupBy({
+            by: ['commune'],
+            where: { ...where, status: client_1.SubmissionStatus.VALIDATED },
+            _count: { id: true },
+            orderBy: { _count: { id: 'desc' } },
+            take: 5,
+        });
+        const byProfession = await this.prisma.submission.groupBy({
+            by: ['prospectProfession'],
+            where: { ...where, type: client_1.SubmissionType.PROSPECT, status: client_1.SubmissionStatus.VALIDATED },
+            _count: { id: true },
+            orderBy: { _count: { id: 'desc' } },
+            take: 5,
+        });
+        const appActivatedByProfession = await this.prisma.submission.groupBy({
+            by: ['prospectProfession'],
+            where: { ...where, type: client_1.SubmissionType.PROSPECT, status: client_1.SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
+            _count: { id: true },
+        });
+        const merchantsByCommune = await this.prisma.submission.groupBy({
+            by: ['commune'],
+            where: { ...where, type: client_1.SubmissionType.MARCHAND, status: client_1.SubmissionStatus.VALIDATED },
+            _count: { id: true },
+        });
+        const appActivated = await this.prisma.submission.count({
+            where: { ...where, type: client_1.SubmissionType.PROSPECT, status: client_1.SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
+        });
+        const topCommunes = byCommune.map((c) => {
+            const merchantItem = merchantsByCommune.find((m) => m.commune === c.commune);
+            const merchantCount = merchantItem ? merchantItem._count.id : 0;
+            return {
+                name: c.commune || 'Non renseigné',
+                prospects: c._count.id,
+                merchants: merchantCount,
+            };
+        });
+        const professionStats = byProfession.map((p) => {
+            const activatedItem = appActivatedByProfession.find((a) => a.prospectProfession === p.prospectProfession);
+            const activated = activatedItem ? activatedItem._count.id : 0;
+            const total = p._count.id;
+            return {
+                profession: p.prospectProfession || 'Non renseigné',
+                prospects: total,
+                activatedPercent: total > 0 ? Math.round((activated / total) * 100) : 0,
+            };
+        });
         const result = {
             total,
             byStatus: {
@@ -479,8 +531,14 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             validationRate,
             pending: submitted,
         };
-        await this.cache.set(cacheKey, result);
-        return result;
+        const extendedResult = {
+            ...result,
+            appActivated,
+            topCommunes,
+            professionStats,
+        };
+        await this.cache.set(cacheKey, extendedResult);
+        return extendedResult;
     }
     validateFieldsByType(dto) {
         if (dto.type === client_1.SubmissionType.PROSPECT) {

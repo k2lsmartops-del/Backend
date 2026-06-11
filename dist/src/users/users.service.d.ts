@@ -14,14 +14,20 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
-        fullName: string;
         email: string | null;
         phone: string;
+        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
+        clusterId: string | null;
+        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -36,12 +42,6 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
-        clusterId: string | null;
-        supervisorId: string | null;
-        appInstalled: never;
-        isOnline: never;
-        lastActive: never;
-        lastLogin: never;
     }>;
     findAll(query: QueryUsersDto, currentUser?: {
         role: Role;
@@ -50,14 +50,20 @@ export declare class UsersService {
         data: {
             id: string;
             matricule: string;
-            fullName: string;
             email: string | null;
             phone: string;
+            fullName: string;
             role: import("@prisma/client").$Enums.Role;
             status: import("@prisma/client").$Enums.AgentStatus;
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
+            appInstalled: boolean;
+            isOnline: boolean;
+            lastActive: Date | null;
+            lastLogin: Date | null;
+            clusterId: string | null;
+            supervisorId: string | null;
             cluster: {
                 id: string;
                 supervisor: {
@@ -72,12 +78,6 @@ export declare class UsersService {
                 matricule: string;
                 fullName: string;
             } | null;
-            clusterId: string | null;
-            supervisorId: string | null;
-            appInstalled: never;
-            isOnline: never;
-            lastActive: never;
-            lastLogin: never;
         }[];
         meta: {
             total: number;
@@ -92,14 +92,20 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
-        fullName: string;
         email: string | null;
         phone: string;
+        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
+        clusterId: string | null;
+        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -120,12 +126,6 @@ export declare class UsersService {
             fullName: string;
             isActive: boolean;
         }[];
-        clusterId: string | null;
-        supervisorId: string | null;
-        appInstalled: never;
-        isOnline: never;
-        lastActive: never;
-        lastLogin: never;
     }>;
     update(id: string, dto: UpdateUserDto, currentUser?: {
         id?: string;
@@ -133,14 +133,20 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
-        fullName: string;
         email: string | null;
         phone: string;
+        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
+        clusterId: string | null;
+        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -155,12 +161,6 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
-        clusterId: string | null;
-        supervisorId: string | null;
-        appInstalled: never;
-        isOnline: never;
-        lastActive: never;
-        lastLogin: never;
     }>;
     deactivate(id: string, currentUser?: {
         id?: string;
@@ -168,14 +168,20 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
-        fullName: string;
         email: string | null;
         phone: string;
+        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
+        clusterId: string | null;
+        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -190,12 +196,6 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
-        clusterId: string | null;
-        supervisorId: string | null;
-        appInstalled: never;
-        isOnline: never;
-        lastActive: never;
-        lastLogin: never;
     }>;
     activate(id: string, currentUser?: {
         id?: string;
@@ -203,14 +203,20 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
-        fullName: string;
         email: string | null;
         phone: string;
+        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
+        clusterId: string | null;
+        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -225,24 +231,24 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
-        clusterId: string | null;
-        supervisorId: string | null;
-        appInstalled: never;
-        isOnline: never;
-        lastActive: never;
-        lastLogin: never;
     }>;
     suspend(id: string): Promise<{
         id: string;
         matricule: string;
-        fullName: string;
         email: string | null;
         phone: string;
+        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
+        clusterId: string | null;
+        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -257,12 +263,6 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
-        clusterId: string | null;
-        supervisorId: string | null;
-        appInstalled: never;
-        isOnline: never;
-        lastActive: never;
-        lastLogin: never;
     }>;
     resetPassword(id: string, currentUser?: {
         id?: string;
@@ -277,14 +277,20 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
-        fullName: string;
         email: string | null;
         phone: string;
+        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
+        clusterId: string | null;
+        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -299,12 +305,6 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
-        clusterId: string | null;
-        supervisorId: string | null;
-        appInstalled: never;
-        isOnline: never;
-        lastActive: never;
-        lastLogin: never;
     }>;
     bulkImport(rows: BulkImportRowDto[]): Promise<{
         total: number;

@@ -22,6 +22,10 @@ export declare class AuthController {
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        appInstalled: boolean;
+        isOnline: boolean;
+        lastActive: Date | null;
+        lastLogin: Date | null;
         clusterId: string | null;
         supervisorId: string | null;
     }, "password">;

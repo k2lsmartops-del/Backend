@@ -306,6 +306,10 @@ export class SubmissionsService {
       case Role.ADMIN:
         // Pas de restriction — compte global
         break;
+      case Role.CLIENT:
+        // CLIENT ne voit que les soumissions validées
+        where.status = SubmissionStatus.VALIDATED;
+        break;
       default:
         where.commercialId = user.id;
     }
@@ -630,6 +634,11 @@ export class SubmissionsService {
       where.clusterId = effectiveClusterId;
     }
 
+    // Pour le CLIENT, on filtre par son clientId (lié à son compte)
+    if (user.role === Role.CLIENT) {
+      where.status = SubmissionStatus.VALIDATED;
+    }
+
     // Compter par statut (workflow simplifié)
     const [
       total,
@@ -671,6 +680,66 @@ export class SubmissionsService {
     // Taux de validation
     const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
 
+    // Stats par commune (top 5)
+    const byCommune = await this.prisma.submission.groupBy({
+      by: ['commune'],
+      where: { ...where, status: SubmissionStatus.VALIDATED },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+
+    // Stats par profession
+    const byProfession = await this.prisma.submission.groupBy({
+      by: ['prospectProfession'],
+      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+
+    // Compter les app activées par profession
+    const appActivatedByProfession = await this.prisma.submission.groupBy({
+      by: ['prospectProfession'],
+      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
+      _count: { id: true },
+    });
+
+    // Compter les marchands par commune
+    const merchantsByCommune = await this.prisma.submission.groupBy({
+      by: ['commune'],
+      where: { ...where, type: SubmissionType.MARCHAND, status: SubmissionStatus.VALIDATED },
+      _count: { id: true },
+    });
+
+    // Compter les app activées
+    const appActivated = await this.prisma.submission.count({
+      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
+    });
+
+    // Formater les stats par commune
+    const topCommunes = byCommune.map((c) => {
+      const merchantItem = merchantsByCommune.find((m) => m.commune === c.commune);
+      const merchantCount = merchantItem ? merchantItem._count.id : 0;
+      return {
+        name: c.commune || 'Non renseigné',
+        prospects: c._count.id,
+        merchants: merchantCount,
+      };
+    });
+
+    // Formater les stats par profession
+    const professionStats = byProfession.map((p) => {
+      const activatedItem = appActivatedByProfession.find((a) => a.prospectProfession === p.prospectProfession);
+      const activated = activatedItem ? activatedItem._count.id : 0;
+      const total = p._count.id;
+      return {
+        profession: p.prospectProfession || 'Non renseigné',
+        prospects: total,
+        activatedPercent: total > 0 ? Math.round((activated / total) * 100) : 0,
+      };
+    });
+
     const result: StatsResult = {
       total,
       byStatus: {
@@ -695,10 +764,18 @@ export class SubmissionsService {
       pending: submitted,
     };
 
-    // 2) Mise en cache pour 5 min (TTL du module).
-    await this.cache.set(cacheKey, result);
+    // Ajouter les stats étendues pour le CLIENT
+    const extendedResult = {
+      ...result,
+      appActivated,
+      topCommunes,
+      professionStats,
+    };
 
-    return result;
+    // 2) Mise en cache pour 5 min (TTL du module).
+    await this.cache.set(cacheKey, extendedResult);
+
+    return extendedResult;
   }
 
   // ──────────────────────────────────────────────

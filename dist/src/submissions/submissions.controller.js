@@ -84,7 +84,7 @@ __decorate([
 __decorate([
     (0, throttler_1.Throttle)({ default: { limit: 200, ttl: 60000 } }),
     (0, common_1.Get)('stats'),
-    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR, client_1.Role.CLIENT),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Query)('clusterId')),
     __metadata("design:type", Function),
@@ -94,6 +94,7 @@ __decorate([
 __decorate([
     (0, throttler_1.Throttle)({ default: { limit: 200, ttl: 60000 } }),
     (0, common_1.Get)(),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN, client_1.Role.COORDINATEUR, client_1.Role.SUPERVISEUR, client_1.Role.COMMERCIAL, client_1.Role.CLIENT),
     __param(0, (0, common_1.Query)()),
     __param(1, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
