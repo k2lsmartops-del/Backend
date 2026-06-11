@@ -472,10 +472,10 @@ export class UsersService {
 
   /**
    * Import en masse d'une équipe complète depuis un fichier Excel.
-   * Traite les lignes dans l'ordre hiérarchique :
-   *   1. COORDINATEUR → crée/rattache le cluster
-   *   2. SUPERVISEUR  → rattache au cluster
-   *   3. COMMERCIAL   → rattache au superviseur (par téléphone), hérite cluster
+   * Nouvelle logique simplifiée :
+   *   1. COORDINATEUR → pas de rattachement territorial (voit tout pour valider)
+   *   2. SUPERVISEUR  → lié à un cluster
+   *   3. COMMERCIAL   → lié à un cluster (comme le superviseur)
    *
    * Chaque ligne est traitée indépendamment : une erreur sur une ligne
    * n'empêche pas le traitement des autres. Retourne un rapport détaillé.
@@ -554,13 +554,6 @@ export class UsersService {
         const hashedPassword = await bcrypt.hash(rawPassword, 12);
 
         if (role === 'COORDINATEUR') {
-          const zoneName = norm(r.zone);
-          if (!zoneName) {
-            throw new BadRequestException(
-              'Cluster (zone) requis pour un coordinateur',
-            );
-          }
-
           let user: any;
           let matricule: string;
           let status: 'created' | 'updated';
@@ -576,6 +569,7 @@ export class UsersService {
                 role: Role.COORDINATEUR,
                 status: AgentStatus.ACTIF,
                 isActive: true,
+                clusterId: null, // COORDINATEUR sans rattachement territorial
               },
             });
             status = 'updated';
@@ -591,14 +585,11 @@ export class UsersService {
                 role: Role.COORDINATEUR,
                 status: AgentStatus.ACTIF,
                 isActive: true,
+                clusterId: null, // COORDINATEUR sans rattachement territorial
               },
             });
             status = 'created';
           }
-
-          // Crée ou rattache le cluster
-          // COORDINATEUR n'est plus lié à un cluster spécifique
-          // Il valide toutes les soumissions de tous les clusters
 
           results.push({
             row: rowNum,
@@ -608,26 +599,29 @@ export class UsersService {
             matricule,
           });
           console.log(
-            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Cluster: ${zoneName}`,
+            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`,
           );
-        } else if (role === 'SUPERVISEUR') {
-          const zoneName = norm(r.zone);
-          if (!zoneName) {
-            throw new BadRequestException('Cluster (zone) requis pour un superviseur');
+        } else if (role === 'SUPERVISEUR' || role === 'COMMERCIAL') {
+          const clusterName = norm(r.zone);
+          if (!clusterName) {
+            throw new BadRequestException(
+              'Cluster (zone) requis pour un superviseur ou un commercial',
+            );
           }
 
           // Créer ou trouver le cluster
           let cluster = await this.prisma.cluster.findUnique({
-            where: { name: zoneName },
+            where: { name: clusterName },
           });
           if (!cluster) {
             cluster = await this.prisma.cluster.create({
-              data: { name: zoneName },
+              data: { name: clusterName },
             });
           }
 
           let matricule: string;
           let status: 'created' | 'updated';
+          const userRole = role === 'SUPERVISEUR' ? Role.SUPERVISEUR : Role.COMMERCIAL;
 
           if (existingUser) {
             matricule = existingUser.matricule;
@@ -637,7 +631,7 @@ export class UsersService {
                 fullName,
                 email,
                 password: hashedPassword,
-                role: Role.SUPERVISEUR,
+                role: userRole,
                 status: AgentStatus.ACTIF,
                 isActive: true,
                 clusterId: cluster.id,
@@ -645,7 +639,7 @@ export class UsersService {
             });
             status = 'updated';
           } else {
-            matricule = await this.generateMatricule(Role.SUPERVISEUR);
+            matricule = await this.generateMatricule(userRole);
             await this.prisma.user.create({
               data: {
                 matricule,
@@ -653,13 +647,21 @@ export class UsersService {
                 email,
                 phone,
                 password: hashedPassword,
-                role: Role.SUPERVISEUR,
+                role: userRole,
                 status: AgentStatus.ACTIF,
                 isActive: true,
                 clusterId: cluster.id,
               },
             });
             status = 'created';
+          }
+
+          // Si c'est un superviseur, le rattacher comme superviseur du cluster
+          if (role === 'SUPERVISEUR') {
+            await this.prisma.cluster.update({
+              where: { id: cluster.id },
+              data: { supervisorId: existingUser?.id || (await this.prisma.user.findUnique({ where: { matricule } }))?.id },
+            });
           }
 
           results.push({
@@ -670,72 +672,7 @@ export class UsersService {
             matricule,
           });
           console.log(
-            `[Import] Ligne ${rowNum}: SUPERVISEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Cluster: ${zoneName}`,
-          );
-        } else if (role === 'COMMERCIAL') {
-          const supPhone = norm(r.supervisorPhone);
-          if (!supPhone) {
-            throw new BadRequestException(
-              'Téléphone du superviseur requis pour un commercial',
-            );
-          }
-
-          const supervisor = await this.prisma.user.findUnique({
-            where: { phone: supPhone },
-          });
-          if (!supervisor || supervisor.role !== Role.SUPERVISEUR) {
-            throw new NotFoundException(
-              `Superviseur (${supPhone}) introuvable`,
-            );
-          }
-
-          let matricule: string;
-          let status: 'created' | 'updated';
-
-          if (existingUser) {
-            matricule = existingUser.matricule;
-            await this.prisma.user.update({
-              where: { id: existingUser.id },
-              data: {
-                fullName,
-                email,
-                password: hashedPassword,
-                role: Role.COMMERCIAL,
-                status: AgentStatus.ACTIF,
-                isActive: true,
-                supervisorId: supervisor.id,
-                clusterId: supervisor.clusterId,
-              },
-            });
-            status = 'updated';
-          } else {
-            matricule = await this.generateMatricule(Role.COMMERCIAL);
-            await this.prisma.user.create({
-              data: {
-                matricule,
-                fullName,
-                email,
-                phone,
-                password: hashedPassword,
-                role: Role.COMMERCIAL,
-                status: AgentStatus.ACTIF,
-                isActive: true,
-                supervisorId: supervisor.id,
-                clusterId: supervisor.clusterId,
-              },
-            });
-            status = 'created';
-          }
-
-          results.push({
-            row: rowNum,
-            status,
-            role,
-            fullName,
-            matricule,
-          });
-          console.log(
-            `[Import] Ligne ${rowNum}: COMMERCIAL ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Superviseur: ${supPhone}`,
+            `[Import] Ligne ${rowNum}: ${role} ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Cluster: ${clusterName}`,
           );
         } else {
           throw new BadRequestException(

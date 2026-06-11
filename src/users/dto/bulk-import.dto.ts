@@ -12,13 +12,17 @@ import {
  * Une ligne d'import provenant du fichier Excel.
  *
  * Colonnes attendues :
- *  - role           : COORDINATEUR | SUPERVISEUR | COMMERCIAL
- *  - fullName       : Nom complet
- *  - phone          : Téléphone (identifiant de connexion)
- *  - email          : Email (optionnel)
- *  - password       : Mot de passe (optionnel — défaut généré sinon)
- *  - zone           : Nom du cluster (COORDINATEUR + SUPERVISEUR)
- *  - supervisorPhone: Téléphone du superviseur de rattachement (COMMERCIAL)
+ *  - role     : COORDINATEUR | SUPERVISEUR | COMMERCIAL
+ *  - fullName : Nom complet
+ *  - phone    : Téléphone (identifiant de connexion)
+ *  - email    : Email (optionnel)
+ *  - password : Mot de passe (optionnel — défaut généré sinon)
+ *  - zone     : Nom du cluster (SUPERVISEUR + COMMERCIAL uniquement)
+ *
+ * Nouvelle logique simplifiée :
+ *  - COORDINATEUR : pas de rattachement territorial
+ *  - SUPERVISEUR  : lié à un cluster
+ *  - COMMERCIAL   : lié à un cluster (comme le superviseur)
  */
 export class BulkImportRowDto {
   @IsString()
@@ -41,10 +45,6 @@ export class BulkImportRowDto {
   @IsOptional()
   @IsString()
   zone?: string;
-
-  @IsOptional()
-  @IsString()
-  supervisorPhone?: string;
 }
 
 /**
