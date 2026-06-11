@@ -5,6 +5,7 @@ export declare class BulkImportRowDto {
     email?: string;
     password?: string;
     cluster?: string;
+    zone?: string;
 }
 export declare class BulkImportDto {
     rows: BulkImportRowDto[];

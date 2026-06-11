@@ -436,7 +436,7 @@ let UsersService = class UsersService {
                     console.log(`[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`);
                 }
                 else if (role === 'SUPERVISEUR' || role === 'COMMERCIAL') {
-                    const clusterName = norm(r.cluster);
+                    const clusterName = norm(r.cluster) || norm(r.zone);
                     if (!clusterName) {
                         throw new common_1.BadRequestException('Cluster requis pour un superviseur ou un commercial');
                     }
@@ -450,9 +450,11 @@ let UsersService = class UsersService {
                     }
                     let matricule;
                     let status;
+                    let userId;
                     const userRole = role === 'SUPERVISEUR' ? client_1.Role.SUPERVISEUR : client_1.Role.COMMERCIAL;
                     if (existingUser) {
                         matricule = existingUser.matricule;
+                        userId = existingUser.id;
                         await this.prisma.user.update({
                             where: { id: existingUser.id },
                             data: {
@@ -469,7 +471,7 @@ let UsersService = class UsersService {
                     }
                     else {
                         matricule = await this.generateMatricule(userRole);
-                        await this.prisma.user.create({
+                        const newUser = await this.prisma.user.create({
                             data: {
                                 matricule,
                                 fullName,
@@ -482,12 +484,16 @@ let UsersService = class UsersService {
                                 clusterId: cluster.id,
                             },
                         });
+                        userId = newUser.id;
                         status = 'created';
                     }
                     if (role === 'SUPERVISEUR') {
+                        if (cluster.supervisorId && cluster.supervisorId !== userId) {
+                            console.warn(`[Import] ATTENTION: Le cluster "${clusterName}" a déjà un superviseur. Remplacement par ${fullName}.`);
+                        }
                         await this.prisma.cluster.update({
                             where: { id: cluster.id },
-                            data: { supervisorId: existingUser?.id || (await this.prisma.user.findUnique({ where: { matricule } }))?.id },
+                            data: { supervisorId: userId },
                         });
                     }
                     results.push({

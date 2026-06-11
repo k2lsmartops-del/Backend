@@ -18,6 +18,7 @@ import {
  *  - email    : Email (optionnel)
  *  - password : Mot de passe (optionnel — défaut généré sinon)
  *  - cluster  : Nom du cluster (SUPERVISEUR + COMMERCIAL uniquement)
+ *  - zone     : (DEPRECATED) Alias de cluster pour rétrocompatibilité
  *
  * Nouvelle logique simplifiée :
  *  - COORDINATEUR : pas de rattachement territorial
@@ -45,6 +46,11 @@ export class BulkImportRowDto {
   @IsOptional()
   @IsString()
   cluster?: string;
+
+  // Rétrocompatibilité : accepte aussi "zone" comme alias de "cluster"
+  @IsOptional()
+  @IsString()
+  zone?: string;
 }
 
 /**
