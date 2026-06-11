@@ -18,7 +18,7 @@ class BulkImportRowDto {
     phone;
     email;
     password;
-    zone;
+    cluster;
 }
 exports.BulkImportRowDto = BulkImportRowDto;
 __decorate([
@@ -47,7 +47,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], BulkImportRowDto.prototype, "zone", void 0);
+], BulkImportRowDto.prototype, "cluster", void 0);
 class BulkImportDto {
     rows;
 }

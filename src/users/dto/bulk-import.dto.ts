@@ -17,7 +17,7 @@ import {
  *  - phone    : Téléphone (identifiant de connexion)
  *  - email    : Email (optionnel)
  *  - password : Mot de passe (optionnel — défaut généré sinon)
- *  - zone     : Nom du cluster (SUPERVISEUR + COMMERCIAL uniquement)
+ *  - cluster  : Nom du cluster (SUPERVISEUR + COMMERCIAL uniquement)
  *
  * Nouvelle logique simplifiée :
  *  - COORDINATEUR : pas de rattachement territorial
@@ -44,7 +44,7 @@ export class BulkImportRowDto {
 
   @IsOptional()
   @IsString()
-  zone?: string;
+  cluster?: string;
 }
 
 /**

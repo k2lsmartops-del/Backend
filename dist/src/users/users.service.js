@@ -436,9 +436,9 @@ let UsersService = class UsersService {
                     console.log(`[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`);
                 }
                 else if (role === 'SUPERVISEUR' || role === 'COMMERCIAL') {
-                    const clusterName = norm(r.zone);
+                    const clusterName = norm(r.cluster);
                     if (!clusterName) {
-                        throw new common_1.BadRequestException('Cluster (zone) requis pour un superviseur ou un commercial');
+                        throw new common_1.BadRequestException('Cluster requis pour un superviseur ou un commercial');
                     }
                     let cluster = await this.prisma.cluster.findUnique({
                         where: { name: clusterName },

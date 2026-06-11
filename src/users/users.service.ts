@@ -602,10 +602,10 @@ export class UsersService {
             `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`,
           );
         } else if (role === 'SUPERVISEUR' || role === 'COMMERCIAL') {
-          const clusterName = norm(r.zone);
+          const clusterName = norm(r.cluster);
           if (!clusterName) {
             throw new BadRequestException(
-              'Cluster (zone) requis pour un superviseur ou un commercial',
+              'Cluster requis pour un superviseur ou un commercial',
             );
           }
 
