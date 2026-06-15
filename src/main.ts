@@ -2,10 +2,20 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import compression from 'compression';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
+
+  // ── Observabilité ──
+  // Filtre d'exceptions GLOBAL : journalise toutes les erreurs (5xx avec stack,
+  // 4xx en warn) avec contexte de corrélation et renvoie le requestId au client.
+  app.useGlobalFilters(new AllExceptionsFilter());
+  // Intercepteur de logging HTTP : une ligne par requête (route, status, durée,
+  // userId, requestId) pour la visibilité et le suivi de latence.
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   // ── Compression HTTP (gzip) ──
   // Réduit la taille des réponses JSON pour les commerciaux en 3G médiocre.

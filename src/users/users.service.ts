@@ -3,10 +3,13 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { AgentStatus, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as speakeasy from 'speakeasy';
+import * as QRCode from 'qrcode';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -49,6 +52,8 @@ const USER_SELECT = {
  */
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -140,19 +145,23 @@ export class UsersService {
     if (currentUser) {
       switch (currentUser.role) {
         case Role.COORDINATEUR:
-          // Compte global — voit tous les users
+          // Ne voit que superviseurs et commerciaux
+          where.role = { in: [Role.SUPERVISEUR, Role.COMMERCIAL] };
           break;
         case Role.SUPERVISEUR:
           // Ne voit que ses commerciaux
           where.supervisorId = currentUser.clusterId ? undefined : undefined;
           where.role = Role.COMMERCIAL;
           break;
-        // ADMIN voit tout — pas de filtre automatique
+        case Role.ADMIN:
+          // ADMIN voit tout sauf les autres admins
+          where.role = { not: Role.ADMIN };
+          break;
       }
     }
 
     // Filtres additionnels depuis la query
-    if (role && !where.role) where.role = role;
+    if (role) where.role = role;
     if (status) where.status = status;
     if (isActive !== undefined) where.isActive = isActive;
     if (clusterId && !where.clusterId) where.clusterId = clusterId;
@@ -481,7 +490,7 @@ export class UsersService {
    * n'empêche pas le traitement des autres. Retourne un rapport détaillé.
    */
   async bulkImport(rows: BulkImportRowDto[]) {
-    console.log(`[Import] Début de l'import de ${rows.length} ligne(s)`);
+    this.logger.log(`Import: début de l'import de ${rows.length} ligne(s)`);
     const norm = (v?: string | null) => (v ?? '').toString().trim();
     const rolePriority: Record<string, number> = {
       COORDINATEUR: 1,
@@ -527,12 +536,6 @@ export class UsersService {
           where: { phone },
         });
 
-        console.log('[IMPORT]', {
-          ligne: rowNum,
-          phone: phone,
-          pwdProvided: !!norm(r.password),
-          pwdLen: rawPassword.length,
-        });
         if (rawPassword.length < 8) {
           throw new BadRequestException(
             'Le mot de passe doit contenir au moins 8 caractères',
@@ -598,8 +601,8 @@ export class UsersService {
             fullName,
             matricule,
           });
-          console.log(
-            `[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`,
+          this.logger.log(
+            `Import ligne ${rowNum}: COORDINATEUR ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`,
           );
         } else if (role === 'SUPERVISEUR' || role === 'COMMERCIAL') {
           // Rétrocompatibilité : accepte cluster OU zone (ancien nom)
@@ -664,8 +667,8 @@ export class UsersService {
           if (role === 'SUPERVISEUR') {
             // Vérifier si le cluster a déjà un superviseur
             if (cluster.supervisorId && cluster.supervisorId !== userId) {
-              console.warn(
-                `[Import] ATTENTION: Le cluster "${clusterName}" a déjà un superviseur. Remplacement par ${fullName}.`,
+              this.logger.warn(
+                `Import ligne ${rowNum}: le cluster "${clusterName}" a déjà un superviseur — remplacement par ${matricule}.`,
               );
             }
             await this.prisma.cluster.update({
@@ -681,8 +684,8 @@ export class UsersService {
             fullName,
             matricule,
           });
-          console.log(
-            `[Import] Ligne ${rowNum}: ${role} ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Cluster: ${clusterName}`,
+          this.logger.log(
+            `Import ligne ${rowNum}: ${role} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) — cluster=${clusterName}`,
           );
         } else {
           throw new BadRequestException(
@@ -690,12 +693,18 @@ export class UsersService {
           );
         }
       } catch (e) {
+        const message = e instanceof Error ? e.message : 'Erreur inconnue';
+        // Trace l'échec ligne par ligne : sans ça, une ligne rejetée
+        // disparaît silencieusement du rapport agrégé côté serveur.
+        this.logger.warn(
+          `Import ligne ${rowNum} échouée (role=${role || '-'}): ${message}`,
+        );
         results.push({
           row: rowNum,
           status: 'error',
           role,
           fullName,
-          message: e instanceof Error ? e.message : 'Erreur inconnue',
+          message,
         });
       }
     }
@@ -707,8 +716,8 @@ export class UsersService {
     const updated = results.filter((r) => r.status === 'updated').length;
     const failed = results.filter((r) => r.status === 'error').length;
 
-    console.log(
-      `[Import] Terminé: ${created} créé(s), ${updated} mis à jour, ${failed} échec(s) sur ${results.length} ligne(s)`,
+    this.logger.log(
+      `Import terminé: ${created} créé(s), ${updated} mis à jour, ${failed} échec(s) sur ${results.length} ligne(s)`,
     );
 
     return {
@@ -751,28 +760,35 @@ export class UsersService {
       orderBy: { fullName: 'asc' },
     });
 
-    // Enrichir avec les stats
-    return Promise.all(
-      members.map(async (m) => {
-        const validatedCount = await this.prisma.submission.count({
-          where: {
-            commercialId: m.id,
-            status: 'VALIDATED',
-          },
-        });
+    if (members.length === 0) return [];
 
-        return {
-          id: m.id,
-          fullName: m.fullName,
-          matricule: m.matricule,
-          phone: m.phone,
-          status: m.status,
-          submissionCount: m._count.submissions,
-          validatedCount,
-          lastActivity: m.submissions[0]?.createdAt || null,
-        };
-      }),
+    // ── Évite le N+1 ──
+    // Au lieu d'un COUNT par commercial (N requêtes), on agrège le nombre de
+    // soumissions validées de TOUTE l'équipe en UNE seule requête groupBy,
+    // puis on associe chaque résultat à son commercial via une Map O(1).
+    const memberIds = members.map((m) => m.id);
+    const validatedCounts = await this.prisma.submission.groupBy({
+      by: ['commercialId'],
+      where: {
+        commercialId: { in: memberIds },
+        status: 'VALIDATED',
+      },
+      _count: { id: true },
+    });
+    const validatedMap = new Map(
+      validatedCounts.map((v) => [v.commercialId, v._count.id]),
     );
+
+    return members.map((m) => ({
+      id: m.id,
+      fullName: m.fullName,
+      matricule: m.matricule,
+      phone: m.phone,
+      status: m.status,
+      submissionCount: m._count.submissions,
+      validatedCount: validatedMap.get(m.id) ?? 0,
+      lastActivity: m.submissions[0]?.createdAt || null,
+    }));
   }
 
   // ──────────────────────────────────────────────
@@ -1053,5 +1069,226 @@ export class UsersService {
     });
 
     return { message: 'Mot de passe modifié avec succès' };
+  }
+
+  /**
+   * Permet à un utilisateur de modifier ses propres informations personnelles.
+   * Uniquement fullName, gender, phone et email peuvent être modifiés.
+   */
+  async updateProfile(userId: string, data: { fullName?: string; gender?: string; phone?: string; email?: string }) {
+    // Vérifier que l'utilisateur existe
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // Valider les données
+    const updateData: any = {};
+
+    if (data.fullName !== undefined) {
+      if (!data.fullName || data.fullName.trim().length === 0) {
+        throw new BadRequestException('Le nom complet est requis');
+      }
+      updateData.fullName = data.fullName.trim();
+    }
+
+    if (data.gender !== undefined) {
+      if (data.gender && !['M', 'F'].includes(data.gender)) {
+        throw new BadRequestException('Le genre doit être "M" (Masculin) ou "F" (Féminin)');
+      }
+      updateData.gender = data.gender || null;
+    }
+
+    if (data.phone !== undefined) {
+      if (!data.phone || data.phone.trim().length === 0) {
+        throw new BadRequestException('Le numéro de téléphone est requis');
+      }
+      // Vérifier que le numéro n'est pas déjà utilisé par un autre utilisateur
+      const existingPhone = await this.prisma.user.findFirst({
+        where: { phone: data.phone, id: { not: userId } },
+      });
+      if (existingPhone) {
+        throw new ConflictException('Ce numéro de téléphone est déjà utilisé');
+      }
+      updateData.phone = data.phone.trim();
+    }
+
+    if (data.email !== undefined) {
+      if (data.email && data.email.trim().length > 0) {
+        // Vérifier le format email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(data.email)) {
+          throw new BadRequestException('Format d\'email invalide');
+        }
+        // Vérifier que l'email n'est pas déjà utilisé par un autre utilisateur
+        const existingEmail = await this.prisma.user.findFirst({
+          where: { email: data.email, id: { not: userId } },
+        });
+        if (existingEmail) {
+          throw new ConflictException('Cet email est déjà utilisé');
+        }
+        updateData.email = data.email.trim();
+      }
+    }
+
+    // Mettre à jour l'utilisateur
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: USER_SELECT,
+    });
+
+    this.logger.log(`Utilisateur ${userId} a mis à jour son profil`);
+
+    return updatedUser;
+  }
+
+  /**
+   * Activer l'authentification à double facteur.
+   * Génère un secret et retourne un QR code pour configurer l'application d'authentification.
+   */
+  async enableTwoFactor(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    if (user.twoFactorEnabled) {
+      throw new BadRequestException('L\'authentification à double facteur est déjà activée');
+    }
+
+    // Générer un secret
+    const secret = speakeasy.generateSecret({
+      name: `K2L SmartOps (${user.fullName})`,
+      issuer: 'K2L SmartOps',
+    });
+
+    // Sauvegarder le secret (pas encore activé)
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorSecret: secret.base32 },
+    });
+
+    // Générer le QR code
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url || '');
+
+    this.logger.log(`Utilisateur ${userId} a initié l'activation du 2FA`);
+
+    return {
+      secret: secret.base32,
+      qrCode: qrCodeUrl,
+      message: 'Scannez le QR code avec votre application d\'authentification et entrez le code pour activer',
+    };
+  }
+
+  /**
+   * Vérifier le code 2FA et activer définitivement.
+   */
+  async verifyAndActivateTwoFactor(userId: string, token: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    if (!user.twoFactorSecret) {
+      throw new BadRequestException('Aucun secret 2FA trouvé. Veuillez d\'abord activer le 2FA');
+    }
+
+    if (user.twoFactorEnabled) {
+      throw new BadRequestException('L\'authentification à double facteur est déjà activée');
+    }
+
+    // Vérifier le token
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: token,
+      window: 2,
+    });
+
+    if (!verified) {
+      throw new BadRequestException('Code invalide');
+    }
+
+    // Activer le 2FA
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: true },
+    });
+
+    this.logger.log(`Utilisateur ${userId} a activé le 2FA`);
+
+    return { message: 'Authentification à double facteur activée avec succès' };
+  }
+
+  /**
+   * Désactiver l'authentification à double facteur.
+   */
+  async disableTwoFactor(userId: string, token: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    if (!user.twoFactorEnabled) {
+      throw new BadRequestException('L\'authentification à double facteur n\'est pas activée');
+    }
+
+    // Vérifier le token avant de désactiver
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret!,
+      encoding: 'base32',
+      token: token,
+      window: 2,
+    });
+
+    if (!verified) {
+      throw new BadRequestException('Code invalide');
+    }
+
+    // Désactiver le 2FA et supprimer le secret
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+      },
+    });
+
+    this.logger.log(`Utilisateur ${userId} a désactivé le 2FA`);
+
+    return { message: 'Authentification à double facteur désactivée avec succès' };
+  }
+
+  /**
+   * Vérifier un code 2FA (utilisé lors du login).
+   */
+  async verifyTwoFactorToken(userId: string, token: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+      return false;
+    }
+
+    return speakeasy.totp.verify({
+      secret: user.twoFactorSecret!,
+      encoding: 'base32',
+      token: token,
+      window: 2,
+    });
   }
 }

@@ -254,6 +254,13 @@ export class SubmissionsService {
         results.push({ clientUuid: dto.clientUuid, status: 'synced', data });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erreur inconnue';
+        // Ne pas avaler l'échec en silence : une soumission terrain perdue est
+        // un incident métier. On trace clientUuid + commercial + cause/stack
+        // pour pouvoir investiguer un signalement « ma fiche a disparu ».
+        this.logger.error(
+          `Sync échouée clientUuid=${dto.clientUuid} commercialId=${user.id}: ${message}`,
+          err instanceof Error ? err.stack : undefined,
+        );
         results.push({
           clientUuid: dto.clientUuid,
           status: 'failed',
@@ -286,6 +293,8 @@ export class SubmissionsService {
       commercialId,
       commune,
       search,
+      startDate,
+      endDate,
     } = query;
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
@@ -320,6 +329,20 @@ export class SubmissionsService {
     if (clusterId) where.clusterId = clusterId;
     if (commercialId) where.commercialId = commercialId;
     if (commune) where.commune = commune;
+
+    // Filtre par date
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) {
+        (where.createdAt as Record<string, Date>).gte = startDate;
+      }
+      if (endDate) {
+        // Inclure toute la journée de fin
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        (where.createdAt as Record<string, Date>).lte = endOfDay;
+      }
+    }
 
     if (search) {
       where.OR = [

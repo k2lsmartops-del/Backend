@@ -1,4 +1,6 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -22,6 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
   ) {
     const secret = configService.get<string>('jwt.secret');
     if (!secret) {
@@ -42,6 +45,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Charge l'utilisateur complet et le retourne (sera attaché à request.user).
    */
   async validate(payload: JwtPayload) {
+    // ── Cache du contexte user (hot path) ──
+    // Servi depuis le cache mémoire (TTL 30 s) dans la grande majorité des
+    // requêtes, ce qui évite un findUnique + 2 jointures par requête.
+    const cacheKey = `auth:user:${payload.sub}`;
+    const cached = await this.cache.get<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: {
@@ -68,6 +80,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Retourne l'utilisateur SANS le mot de passe
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userWithoutPassword } = user;
+
+    // Mise en cache du contexte (uniquement les comptes actifs valides).
+    await this.cache.set(cacheKey, userWithoutPassword);
+
     return userWithoutPassword;
   }
 }

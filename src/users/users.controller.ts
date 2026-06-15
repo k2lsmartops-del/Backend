@@ -204,4 +204,67 @@ export class UsersController {
     return this.usersService.changePassword(id, body.password);
   }
 
+  /**
+   * PATCH /users/:id/profile — Modifier ses propres informations personnelles.
+   * Accessible à tous les utilisateurs authentifiés (ADMIN, COORDINATEUR, SUPERVISEUR, COMMERCIAL).
+   * L'utilisateur ne peut modifier que ses propres informations (fullName, gender, phone, email).
+   */
+  @Patch(':id/profile')
+  updateProfile(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { fullName?: string; gender?: string; phone?: string; email?: string },
+  ) {
+    // Vérifier que l'utilisateur modifie son propre profil
+    if (id !== currentUser.id) {
+      throw new Error('Vous ne pouvez modifier que votre propre profil');
+    }
+    return this.usersService.updateProfile(id, body);
+  }
+
+  /**
+   * POST /users/:id/two-factor/enable — Activer l'authentification à double facteur.
+   * Retourne un QR code et un secret pour configurer l'application d'authentification.
+   */
+  @Post(':id/two-factor/enable')
+  enableTwoFactor(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    if (id !== currentUser.id) {
+      throw new Error('Vous ne pouvez activer le 2FA que pour votre propre compte');
+    }
+    return this.usersService.enableTwoFactor(id);
+  }
+
+  /**
+   * POST /users/:id/two-factor/verify — Vérifier le code 2FA et activer définitivement.
+   */
+  @Post(':id/two-factor/verify')
+  verifyTwoFactor(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { token: string },
+  ) {
+    if (id !== currentUser.id) {
+      throw new Error('Vous ne pouvez vérifier le 2FA que pour votre propre compte');
+    }
+    return this.usersService.verifyAndActivateTwoFactor(id, body.token);
+  }
+
+  /**
+   * POST /users/:id/two-factor/disable — Désactiver l'authentification à double facteur.
+   */
+  @Post(':id/two-factor/disable')
+  disableTwoFactor(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { token: string },
+  ) {
+    if (id !== currentUser.id) {
+      throw new Error('Vous ne pouvez désactiver le 2FA que pour votre propre compte');
+    }
+    return this.usersService.disableTwoFactor(id, body.token);
+  }
+
 }

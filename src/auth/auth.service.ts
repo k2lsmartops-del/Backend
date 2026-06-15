@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User } from '@prisma/client';
@@ -27,6 +27,8 @@ export interface AuthResponse {
  */
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
@@ -38,13 +40,6 @@ export class AuthService {
    * Retourne les tokens et les infos utilisateur.
    */
   async login(dto: LoginDto): Promise<AuthResponse> {
-    // DEBUG: Log tentative de connexion
-    console.log('[LOGIN]', {
-      identifiant: dto.identifiant,
-      pwdBytes: Buffer.from(dto.password, 'utf8').toString('hex'),
-      pwdLen: dto.password.length,
-    });
-
     // Recherche l'utilisateur par phone OU email
     const user = await this.prisma.user.findFirst({
       where: {
@@ -56,22 +51,21 @@ export class AuthService {
       },
     });
 
-    // DEBUG: Log résultat recherche
-    console.log('[LOGIN]', {
-      identifiant: dto.identifiant,
-      userFound: !!user,
-      userPhone: user?.phone,
-      userMatricule: user?.matricule,
-      hashStored: user?.password?.substring(0, 30) + '...',
-    });
-
     // Message générique pour ne pas révéler si c'est l'identifiant ou le mdp qui est faux
     if (!user) {
+      // Audit : échec d'identifiant inconnu (utile pour détecter du brute force).
+      // On ne logue PAS le mot de passe, seulement l'identifiant tenté.
+      this.logger.warn(
+        `Login échoué (identifiant inconnu): ${dto.identifiant}`,
+      );
       throw new UnauthorizedException('Identifiants invalides');
     }
 
     // Vérifie si le compte est actif
     if (!user.isActive) {
+      this.logger.warn(
+        `Login refusé (compte inactif): userId=${user.id} matricule=${user.matricule}`,
+      );
       throw new UnauthorizedException(
         'Compte désactivé. Contactez votre administrateur.',
       );
@@ -79,21 +73,21 @@ export class AuthService {
 
     // Vérifie le mot de passe
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-    
-    // DEBUG: Log résultat comparaison
-    console.log('[LOGIN]', {
-      identifiant: dto.identifiant,
-      bcryptCompare: isPasswordValid,
-      pwdProvided: dto.password,
-      hashStored: user.password.substring(0, 30) + '...',
-    });
 
     if (!isPasswordValid) {
+      this.logger.warn(
+        `Login échoué (mot de passe invalide): userId=${user.id} matricule=${user.matricule}`,
+      );
       throw new UnauthorizedException('Identifiants invalides');
     }
 
     // Génère les tokens
     const tokens = await this.generateTokens(user);
+
+    // Audit : connexion réussie (traçabilité des accès).
+    this.logger.log(
+      `Login réussi: userId=${user.id} matricule=${user.matricule} role=${user.role}`,
+    );
 
     // Retourne les tokens et l'utilisateur sans le mot de passe
     const { password, ...userWithoutPassword } = user;

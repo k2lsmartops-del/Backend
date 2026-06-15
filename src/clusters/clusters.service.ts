@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
@@ -11,6 +12,8 @@ import { UpdateClusterDto } from './dto/update-cluster.dto';
 
 @Injectable()
 export class ClustersService {
+  private readonly logger = new Logger(ClustersService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -357,8 +360,8 @@ export class ClustersService {
         data: { supervisorId: newSupervisorId },
       });
 
-      console.log(
-        `[Cluster] ${cluster.name}: Superviseur ${newSup.fullName} assigné, ${updateResult.count} commerciaux mis à jour`,
+      this.logger.log(
+        `Cluster "${cluster.name}": superviseur ${newSup.id} assigné, ${updateResult.count} commerciaux mis à jour`,
       );
 
       return {
@@ -411,7 +414,7 @@ export class ClustersService {
         data: { supervisorId: null },
       });
 
-      console.log(`[Cluster] ${cluster.name}: Superviseur retiré`);
+      this.logger.log(`Cluster "${cluster.name}": superviseur retiré`);
 
       return { clusterId, clusterName: cluster.name, message: 'Superviseur retiré avec succès' };
     });
