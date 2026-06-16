@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -199,7 +200,7 @@ export class UsersController {
   ) {
     // Vérifier que l'utilisateur modifie son propre mot de passe
     if (id !== currentUser.id) {
-      throw new Error('Vous ne pouvez modifier que votre propre mot de passe');
+      throw new ForbiddenException('Vous ne pouvez modifier que votre propre mot de passe');
     }
     return this.usersService.changePassword(id, body.password);
   }
@@ -217,7 +218,7 @@ export class UsersController {
   ) {
     // Vérifier que l'utilisateur modifie son propre profil
     if (id !== currentUser.id) {
-      throw new Error('Vous ne pouvez modifier que votre propre profil');
+      throw new ForbiddenException('Vous ne pouvez modifier que votre propre profil');
     }
     return this.usersService.updateProfile(id, body);
   }
@@ -232,7 +233,7 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     if (id !== currentUser.id) {
-      throw new Error('Vous ne pouvez activer le 2FA que pour votre propre compte');
+      throw new ForbiddenException('Vous ne pouvez activer le 2FA que pour votre propre compte');
     }
     return this.usersService.enableTwoFactor(id);
   }
@@ -247,7 +248,7 @@ export class UsersController {
     @Body() body: { token: string },
   ) {
     if (id !== currentUser.id) {
-      throw new Error('Vous ne pouvez vérifier le 2FA que pour votre propre compte');
+      throw new ForbiddenException('Vous ne pouvez vérifier le 2FA que pour votre propre compte');
     }
     return this.usersService.verifyAndActivateTwoFactor(id, body.token);
   }
@@ -262,7 +263,7 @@ export class UsersController {
     @Body() body: { token: string },
   ) {
     if (id !== currentUser.id) {
-      throw new Error('Vous ne pouvez désactiver le 2FA que pour votre propre compte');
+      throw new ForbiddenException('Vous ne pouvez désactiver le 2FA que pour votre propre compte');
     }
     return this.usersService.disableTwoFactor(id, body.token);
   }

@@ -1,5 +1,12 @@
 node_modules
 
 .env
+.env.backup
+.env.local
 
 /generated/prisma
+/dist
+
+# Scripts de test/debug (ne pas déployer)
+src/users/test-login.script.ts
+scripts/

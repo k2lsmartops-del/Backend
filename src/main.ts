@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import compression from 'compression';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -16,6 +17,11 @@ async function bootstrap() {
   // Intercepteur de logging HTTP : une ligne par requête (route, status, durée,
   // userId, requestId) pour la visibilité et le suivi de latence.
   app.useGlobalInterceptors(new LoggingInterceptor());
+
+  // ── Headers de sécurité HTTP (helmet) ──
+  // Ajoute les headers de sécurité recommandés : X-Content-Type-Options,
+  // X-Frame-Options, Strict-Transport-Security, etc.
+  app.use(helmet());
 
   // ── Compression HTTP (gzip) ──
   // Réduit la taille des réponses JSON pour les commerciaux en 3G médiocre.
@@ -56,6 +62,7 @@ async function bootstrap() {
   // ── Logs de démarrage : confirment l'activation des optimisations ──
   const logger = new Logger('Bootstrap');
   logger.log(`Application démarrée sur le port ${port}`);
+  logger.log('Security headers enabled (helmet)');
   logger.log('Compression enabled (gzip, threshold=1KB, level=6)');
   logger.log('Rate limiting enabled (60/min par IP)');
   logger.log('Cache enabled (TTL=5min) — KPIs dashboard');
