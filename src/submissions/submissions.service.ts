@@ -828,7 +828,7 @@ export class SubmissionsService {
     });
 
     // Alertes principales
-    const alerts = [];
+    const alerts: { type: string; count: number; message: string }[] = [];
     if (filesSubmitted > 50) {
       alerts.push({ type: 'PENDING', count: filesSubmitted, message: 'Dossiers en attente de validation' });
     }
