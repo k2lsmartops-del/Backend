@@ -86,6 +86,57 @@ export interface StatsResult {
 }
 
 /**
+ * KPIs Production
+ */
+interface ProductionKPIs {
+  activeAgents: number;
+  clientsApproached: number;
+  installations: number;
+  activations: number;
+  activeClients: number;
+}
+
+/**
+ * KPIs Performance
+ */
+interface PerformanceKPIs {
+  objective: number;
+  achieved: number;
+  achievementPercent: number;
+  productivityPerAgent: number;
+  clusterPerformance: { clusterId: string; clusterName: string; achieved: number; objective: number }[];
+}
+
+/**
+ * KPIs Qualité
+ */
+interface QualityKPIs {
+  filesSubmitted: number;
+  filesValidated: number;
+  filesRejected: number;
+  validationRate: number;
+}
+
+/**
+ * KPIs Pilotage
+ */
+interface PilotageKPIs {
+  coveredZones: number;
+  mainAlerts: { type: string; count: number; message: string }[];
+  globalScore: number;
+}
+
+/**
+ * Interface complète pour les KPIs structurés
+ */
+export interface ComprehensiveKPIs {
+  production: ProductionKPIs;
+  performance: PerformanceKPIs;
+  quality: QualityKPIs;
+  pilotage: PilotageKPIs;
+}
+
+/**
  * Service de gestion des soumissions terrain.
  * Gère création, soumission, listing, validation N1/N2, rejet.
  */
@@ -626,18 +677,15 @@ export class SubmissionsService {
   /**
    * Statistiques pour le dashboard.
    * Filtrées selon le rôle de l'utilisateur.
+   * Retourne les KPIs structurés en 4 catégories : Production, Performance, Qualité, Pilotage.
    */
   async getStats(
     user: Omit<User, 'password'>,
     clusterId?: string,
   ) {
     // ── Cache des KPIs ──
-    // Clé UNIQUE par contexte : le résultat dépend du rôle (filtre de cluster
-    // différent), de l'utilisateur, et du cluster éventuellement filtré.
     const cacheKey = `dashboard:stats:${user.role}:${user.id}:${clusterId || 'all'}`;
-
-    // 1) Si présent en cache (TTL 5 min non expiré) → on évite les COUNT.
-    const cached = await this.cache.get<StatsResult>(cacheKey);
+    const cached = await this.cache.get<ComprehensiveKPIs>(cacheKey);
     if (cached) {
       this.logger.debug(`KPIs servis depuis le cache (${cacheKey})`);
       return cached;
@@ -662,143 +710,159 @@ export class SubmissionsService {
       where.status = SubmissionStatus.VALIDATED;
     }
 
-    // Compter par statut (workflow simplifié)
-    const [
-      total,
-      draft,
-      submitted,
-      validated,
-      rejected,
-      prospects,
-      marchands,
-    ] = await Promise.all([
-      this.prisma.submission.count({ where }),
-      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.DRAFT } }),
-      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.SUBMITTED } }),
-      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.VALIDATED } }),
-      this.prisma.submission.count({ where: { ...where, status: SubmissionStatus.REJECTED } }),
-      this.prisma.submission.count({ where: { ...where, type: SubmissionType.PROSPECT } }),
-      this.prisma.submission.count({ where: { ...where, type: SubmissionType.MARCHAND } }),
-    ]);
+    // ── Production KPIs ──
+    // Agents actifs
+    const activeAgents = await this.prisma.user.count({
+      where: { 
+        role: Role.COMMERCIAL, 
+        isActive: true,
+        ...(effectiveClusterId && { clusterId: effectiveClusterId })
+      }
+    });
 
-    // Stats aujourd'hui
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayWhere = { ...where, createdAt: { gte: today } };
-    const [todayTotal, todayValidated] = await Promise.all([
-      this.prisma.submission.count({ where: todayWhere }),
-      this.prisma.submission.count({ where: { ...todayWhere, status: SubmissionStatus.VALIDATED } }),
-    ]);
+    // Clients approchés (prospects validés)
+    const clientsApproached = await this.prisma.submission.count({
+      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED }
+    });
 
-    // Stats cette semaine
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    weekStart.setHours(0, 0, 0, 0);
-    const weekWhere = { ...where, createdAt: { gte: weekStart } };
-    const [weekTotal, weekValidated] = await Promise.all([
-      this.prisma.submission.count({ where: weekWhere }),
-      this.prisma.submission.count({ where: { ...weekWhere, status: SubmissionStatus.VALIDATED } }),
-    ]);
+    // Installations (appStatus = INSTALLED ou INSTALLED_ACTIVATED)
+    const installations = await this.prisma.submission.count({
+      where: { 
+        ...where, 
+        type: SubmissionType.PROSPECT, 
+        status: SubmissionStatus.VALIDATED,
+        appStatus: { in: ['INSTALLED', 'INSTALLED_ACTIVATED'] }
+      }
+    });
 
-    // Taux de validation
-    const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
+    // Activations (appStatus = INSTALLED_ACTIVATED)
+    const activations = await this.prisma.submission.count({
+      where: { 
+        ...where, 
+        type: SubmissionType.PROSPECT, 
+        status: SubmissionStatus.VALIDATED,
+        appStatus: 'INSTALLED_ACTIVATED'
+      }
+    });
 
-    // Stats par commune (top 5)
-    const byCommune = await this.prisma.submission.groupBy({
+    // Clients actifs (marchands validés)
+    const activeClients = await this.prisma.submission.count({
+      where: { ...where, type: SubmissionType.MARCHAND, status: SubmissionStatus.VALIDATED }
+    });
+
+    const production: ProductionKPIs = {
+      activeAgents,
+      clientsApproached,
+      installations,
+      activations,
+      activeClients
+    };
+
+    // ── Performance KPIs ──
+    // Objectif (basé sur le nombre d'agents * quota mensuel de 100)
+    const objective = activeAgents * 100;
+    const achieved = clientsApproached + activeClients;
+    const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
+    const productivityPerAgent = activeAgents > 0 ? Math.round(achieved / activeAgents) : 0;
+
+    // Performance par cluster
+    const clusters = await this.prisma.cluster.findMany({
+      where: effectiveClusterId ? { id: effectiveClusterId } : {},
+      include: {
+        _count: { select: { members: { where: { role: Role.COMMERCIAL, isActive: true } } } }
+      }
+    });
+
+    const clusterPerformance = await Promise.all(
+      clusters.map(async (cluster) => {
+        const clusterWhere = { ...where, clusterId: cluster.id };
+        const clusterAgents = cluster._count.members;
+        const clusterObjective = clusterAgents * 100;
+        const clusterAchieved = await this.prisma.submission.count({
+          where: { ...clusterWhere, status: SubmissionStatus.VALIDATED }
+        });
+        return {
+          clusterId: cluster.id,
+          clusterName: cluster.name,
+          achieved: clusterAchieved,
+          objective: clusterObjective
+        };
+      })
+    );
+
+    const performance: PerformanceKPIs = {
+      objective,
+      achieved,
+      achievementPercent,
+      productivityPerAgent,
+      clusterPerformance
+    };
+
+    // ── Quality KPIs ──
+    const filesSubmitted = await this.prisma.submission.count({
+      where: { ...where, status: SubmissionStatus.SUBMITTED }
+    });
+    const filesValidated = await this.prisma.submission.count({
+      where: { ...where, status: SubmissionStatus.VALIDATED }
+    });
+    const filesRejected = await this.prisma.submission.count({
+      where: { ...where, status: SubmissionStatus.REJECTED }
+    });
+    const qualityValidationRate = (filesValidated + filesRejected) > 0 
+      ? Math.round((filesValidated / (filesValidated + filesRejected)) * 100) 
+      : 0;
+
+    const quality: QualityKPIs = {
+      filesSubmitted,
+      filesValidated,
+      filesRejected,
+      validationRate: qualityValidationRate
+    };
+
+    // ── Pilotage KPIs ──
+    // Zones couvertes (communes uniques avec au moins une soumission validée)
+    const coveredZones = await this.prisma.submission.groupBy({
       by: ['commune'],
       where: { ...where, status: SubmissionStatus.VALIDATED },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5,
+      _count: { id: true }
     });
 
-    // Stats par profession
-    const byProfession = await this.prisma.submission.groupBy({
-      by: ['prospectProfession'],
-      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED },
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 5,
-    });
+    // Alertes principales
+    const alerts = [];
+    if (filesSubmitted > 50) {
+      alerts.push({ type: 'PENDING', count: filesSubmitted, message: 'Dossiers en attente de validation' });
+    }
+    if (qualityValidationRate < 70) {
+      alerts.push({ type: 'QUALITY', count: filesRejected, message: 'Taux de validation faible' });
+    }
+    if (achievementPercent < 50) {
+      alerts.push({ type: 'PERFORMANCE', count: achievementPercent, message: 'Objectif non atteint' });
+    }
 
-    // Compter les app activées par profession
-    const appActivatedByProfession = await this.prisma.submission.groupBy({
-      by: ['prospectProfession'],
-      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
-      _count: { id: true },
-    });
+    // Score global (moyenne des indicateurs)
+    const score = Math.round(
+      (Math.min(achievementPercent, 100) + 
+       qualityValidationRate + 
+       (activeAgents > 0 ? 100 : 0)) / 3
+    );
 
-    // Compter les marchands par commune
-    const merchantsByCommune = await this.prisma.submission.groupBy({
-      by: ['commune'],
-      where: { ...where, type: SubmissionType.MARCHAND, status: SubmissionStatus.VALIDATED },
-      _count: { id: true },
-    });
-
-    // Compter les app activées
-    const appActivated = await this.prisma.submission.count({
-      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
-    });
-
-    // Formater les stats par commune
-    const topCommunes = byCommune.map((c) => {
-      const merchantItem = merchantsByCommune.find((m) => m.commune === c.commune);
-      const merchantCount = merchantItem ? merchantItem._count.id : 0;
-      return {
-        name: c.commune || 'Non renseigné',
-        prospects: c._count.id,
-        merchants: merchantCount,
-      };
-    });
-
-    // Formater les stats par profession
-    const professionStats = byProfession.map((p) => {
-      const activatedItem = appActivatedByProfession.find((a) => a.prospectProfession === p.prospectProfession);
-      const activated = activatedItem ? activatedItem._count.id : 0;
-      const total = p._count.id;
-      return {
-        profession: p.prospectProfession || 'Non renseigné',
-        prospects: total,
-        activatedPercent: total > 0 ? Math.round((activated / total) * 100) : 0,
-      };
-    });
-
-    const result: StatsResult = {
-      total,
-      byStatus: {
-        draft,
-        submitted,
-        validated,
-        rejected,
-      },
-      byType: {
-        prospects,
-        marchands,
-      },
-      today: {
-        total: todayTotal,
-        validated: todayValidated,
-      },
-      week: {
-        total: weekTotal,
-        validated: weekValidated,
-      },
-      validationRate,
-      pending: submitted,
+    const pilotage: PilotageKPIs = {
+      coveredZones: coveredZones.length,
+      mainAlerts: alerts,
+      globalScore: score
     };
 
-    // Ajouter les stats étendues pour le CLIENT
-    const extendedResult = {
-      ...result,
-      appActivated,
-      topCommunes,
-      professionStats,
+    const result: ComprehensiveKPIs = {
+      production,
+      performance,
+      quality,
+      pilotage
     };
 
-    // 2) Mise en cache pour 5 min (TTL du module).
-    await this.cache.set(cacheKey, extendedResult);
+    // Mise en cache pour 5 min
+    await this.cache.set(cacheKey, result);
 
-    return extendedResult;
+    return result;
   }
 
   // ──────────────────────────────────────────────
