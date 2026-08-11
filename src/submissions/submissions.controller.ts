@@ -78,8 +78,9 @@ export class SubmissionsController {
   getStats(
     @CurrentUser() user: Omit<User, 'password'>,
     @Query('clusterId') clusterId?: string,
+    @Query('period') period?: 'day' | 'week' | 'month',
   ) {
-    return this.submissionsService.getStats(user, clusterId);
+    return this.submissionsService.getStats(user, clusterId, period || 'day');
   }
 
   /**

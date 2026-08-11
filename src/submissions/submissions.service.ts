@@ -682,9 +682,10 @@ export class SubmissionsService {
   async getStats(
     user: Omit<User, 'password'>,
     clusterId?: string,
+    period: 'day' | 'week' | 'month' = 'day',
   ) {
     // ── Cache des KPIs ──
-    const cacheKey = `dashboard:stats:${user.role}:${user.id}:${clusterId || 'all'}`;
+    const cacheKey = `dashboard:stats:${user.role}:${user.id}:${clusterId || 'all'}:${period}`;
     const cached = await this.cache.get<ComprehensiveKPIs>(cacheKey);
     if (cached) {
       this.logger.debug(`KPIs servis depuis le cache (${cacheKey})`);
@@ -710,10 +711,21 @@ export class SubmissionsService {
       where.status = SubmissionStatus.VALIDATED;
     }
 
-    // Filtre temporel : KPIs du jour en cours
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    where.createdAt = { gte: today };
+    // Filtre temporel selon la période
+    const now = new Date();
+    if (period === 'day') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      where.createdAt = { gte: today };
+    } else if (period === 'week') {
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      where.createdAt = { gte: weekStart };
+    } else if (period === 'month') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      where.createdAt = { gte: monthStart };
+    }
 
     // ── Production KPIs ──
     // Agents actifs
