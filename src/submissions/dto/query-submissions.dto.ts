@@ -46,4 +46,8 @@ export class QuerySubmissionsDto extends PaginationDto {
   @IsDate()
   @Type(() => Date)
   endDate?: Date;
+
+  @IsOptional()
+  @IsEnum(['day', 'week', 'month'])
+  period?: 'day' | 'week' | 'month';
 }

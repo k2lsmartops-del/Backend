@@ -346,6 +346,7 @@ export class SubmissionsService {
       search,
       startDate,
       endDate,
+      period,
     } = query;
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
@@ -381,8 +382,24 @@ export class SubmissionsService {
     if (commercialId) where.commercialId = commercialId;
     if (commune) where.commune = commune;
 
-    // Filtre par date
-    if (startDate || endDate) {
+    // Filtre par période (prioritaire sur startDate/endDate)
+    if (period) {
+      const now = new Date();
+      if (period === 'day') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        where.createdAt = { gte: today };
+      } else if (period === 'week') {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        where.createdAt = { gte: weekStart };
+      } else if (period === 'month') {
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        where.createdAt = { gte: monthStart };
+      }
+    } else if (startDate || endDate) {
+      // Filtre par date (si pas de période)
       where.createdAt = {};
       if (startDate) {
         (where.createdAt as Record<string, Date>).gte = startDate;
