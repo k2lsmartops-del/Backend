@@ -48,6 +48,7 @@ async function bootstrap() {
   const allowedOrigins = [
     'http://localhost:5173',
     'https://frontend-taupe-two-91.vercel.app',
+    'https://www.k2lsmartops.com',
     process.env.FRONTEND_URL,
   ].filter(Boolean) as string[];
 
