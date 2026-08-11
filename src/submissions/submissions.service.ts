@@ -710,6 +710,11 @@ export class SubmissionsService {
       where.status = SubmissionStatus.VALIDATED;
     }
 
+    // Filtre temporel : KPIs du jour en cours
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    where.createdAt = { gte: today };
+
     // ── Production KPIs ──
     // Agents actifs
     const activeAgents = await this.prisma.user.count({
