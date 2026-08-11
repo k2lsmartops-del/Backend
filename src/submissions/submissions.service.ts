@@ -776,8 +776,10 @@ export class SubmissionsService {
     };
 
     // ── Performance KPIs ──
-    // Objectif (1620 par jour pour 135 commerciaux = 12 par commercial par jour)
-    const objective = activeAgents * 12;
+    // Objectif selon la période (1620/jour pour 135 commerciaux = 12/jour par commercial)
+    // Jour: 12, Semaine: 12*7=84, Mois: 12*30=360
+    const quotaPerAgent = period === 'day' ? 12 : period === 'week' ? 84 : 360;
+    const objective = activeAgents * quotaPerAgent;
     const achieved = clientsApproached + activeClients;
     const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
     const productivityPerAgent = activeAgents > 0 ? Math.round(achieved / activeAgents) : 0;
@@ -794,7 +796,7 @@ export class SubmissionsService {
       clusters.map(async (cluster) => {
         const clusterWhere = { ...where, clusterId: cluster.id };
         const clusterAgents = cluster._count.members;
-        const clusterObjective = clusterAgents * 12;
+        const clusterObjective = clusterAgents * quotaPerAgent;
         const clusterAchieved = await this.prisma.submission.count({
           where: { ...clusterWhere, status: SubmissionStatus.VALIDATED }
         });
