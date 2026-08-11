@@ -778,7 +778,7 @@ export class SubmissionsService {
     // Jour: 12, Semaine: 12*7=84, Mois: 12*30=360
     const quotaPerAgent = period === 'day' ? 12 : period === 'week' ? 84 : 360;
     const objective = activeAgents * quotaPerAgent;
-    const achieved = clientsApproached + activeClients;
+    const achieved = clientsApproached;
     const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
     const productivityPerAgent = activeAgents > 0 ? Math.round(achieved / activeAgents) : 0;
 
