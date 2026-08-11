@@ -757,13 +757,16 @@ export class SubmissionsService {
       }
     });
 
-    // Clients approchés (prospects validés avec app installée/activée)
-    const clientsApproached = installations;
-
-    // Clients actifs (marchands validés) - non pertinent pour l'agence marketing, mais gardé pour compatibilité
+    // Clients actifs (marchands validés)
     const activeClients = await this.prisma.submission.count({
       where: { ...where, type: SubmissionType.MARCHAND, status: SubmissionStatus.VALIDATED }
     });
+
+    // Clients approchés (prospects validés + marchands validés)
+    const prospectsValidated = await this.prisma.submission.count({
+      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED }
+    });
+    const clientsApproached = prospectsValidated + activeClients;
 
     const production: ProductionKPIs = {
       activeAgents,
