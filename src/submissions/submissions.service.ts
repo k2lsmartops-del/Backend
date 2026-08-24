@@ -163,10 +163,10 @@ export class SubmissionsService {
     if (user.role === Role.COMMERCIAL) {
       const commercial = await this.prisma.user.findUnique({
         where: { id: user.id },
-        select: { referralCode: true },
+        select: { sponsorCode: true },
       });
 
-      if (!commercial || !commercial.referralCode) {
+      if (!commercial || !commercial.sponsorCode) {
         throw new BadRequestException(
           'Vous devez avoir un code de parrainage pour effectuer des soumissions. Contactez votre superviseur.'
         );
@@ -174,7 +174,7 @@ export class SubmissionsService {
 
       // Utiliser automatiquement le code de parrainage du commercial si non fourni
       if (!dto.sponsorCode) {
-        dto.sponsorCode = commercial.referralCode;
+        dto.sponsorCode = commercial.sponsorCode;
       }
     }
 

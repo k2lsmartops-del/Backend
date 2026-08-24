@@ -5,6 +5,7 @@ import {
   IsArray,
   IsOptional,
   IsString,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -12,13 +13,16 @@ import {
  * Une ligne d'import provenant du fichier Excel.
  *
  * Colonnes attendues :
- *  - role     : COORDINATEUR | SUPERVISEUR | COMMERCIAL
- *  - fullName : Nom complet
- *  - phone    : Téléphone (identifiant de connexion)
- *  - email    : Email (optionnel)
- *  - password : Mot de passe (optionnel — défaut généré sinon)
- *  - cluster  : Nom du cluster (SUPERVISEUR + COMMERCIAL uniquement)
- *  - zone     : (DEPRECATED) Alias de cluster pour rétrocompatibilité
+ *  - role        : COORDINATEUR | SUPERVISEUR | COMMERCIAL
+ *  - fullName    : Nom complet
+ *  - phone       : Téléphone (identifiant de connexion)
+ *  - email       : Email (optionnel)
+ *  - password    : Mot de passe (optionnel — défaut généré sinon)
+ *  - cluster     : Nom du cluster (SUPERVISEUR + COMMERCIAL uniquement)
+ *  - zone        : (DEPRECATED) Alias de cluster pour rétrocompatibilité
+ *  - sponsorCode : Code de parrainage unique (traçabilité des recrutements)
+ *  - commune     : Commune principale (ex: Abobo, Yopougon)
+ *  - habitation  : Adresse d'habitation (informatif)
  *
  * Nouvelle logique simplifiée :
  *  - COORDINATEUR : pas de rattachement territorial
@@ -51,6 +55,21 @@ export class BulkImportRowDto {
   @IsOptional()
   @IsString()
   zone?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  sponsorCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  commune?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  habitation?: string;
 }
 
 /**
