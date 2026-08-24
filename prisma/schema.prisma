@@ -167,18 +167,19 @@ model Cluster {
 ///                  + hérite du clusterId du superviseur (dénormalisé pour KPIs)
 ///   CLIENT       : aucun rattachement (lecture seule)
 model User {
-  id        String      @id @default(uuid())
-  matricule String      @unique
-  fullName  String
-  gender    String?     // Genre: "M" (Masculin), "F" (Féminin)
-  email     String?     @unique
-  phone     String      @unique
-  password  String
-  role      Role
-  status    AgentStatus @default(ACTIF)
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id          String      @id @default(uuid())
+  matricule   String      @unique
+  fullName    String
+  gender      String?     // Genre: "M" (Masculin), "F" (Féminin)
+  email       String?     @unique
+  phone       String      @unique
+  password    String
+  role        Role
+  status      AgentStatus @default(ACTIF)
+  isActive    Boolean     @default(true)
+  referralCode String?    @unique // Code de parrainage unique pour les commerciaux
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   // Suivi de l'application et de la connexion
   appInstalled Boolean  @default(false)

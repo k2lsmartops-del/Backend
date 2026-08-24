@@ -28,14 +28,11 @@ const USER_SELECT = {
   role: true,
   status: true,
   isActive: true,
+  referralCode: true,
   clusterId: true,
   supervisorId: true,
   createdAt: true,
   updatedAt: true,
-  appInstalled: true,
-  isOnline: true,
-  lastActive: true,
-  lastLogin: true,
   cluster: {
     select: {
       id: true,
@@ -95,6 +92,12 @@ export class UsersService {
     // Génère le matricule automatiquement
     const matricule = await this.generateMatricule(dto.role);
 
+    // Génère le code de parrainage pour les commerciaux
+    let referralCode: string | undefined;
+    if (dto.role === Role.COMMERCIAL) {
+      referralCode = await this.generateReferralCode();
+    }
+
     // Hash le mot de passe
     const hashedPassword = await bcrypt.hash(dto.password, 12);
 
@@ -112,6 +115,7 @@ export class UsersService {
         role: dto.role,
         status,
         isActive,
+        referralCode,
         clusterId,
         supervisorId: dto.supervisorId || null,
       },
@@ -927,6 +931,30 @@ export class UsersService {
     }
 
     return matricule;
+  }
+
+  /**
+   * Génère un code de parrainage unique pour un commercial.
+   * Format: 8 caractères alphanumériques en majuscules
+   */
+  private async generateReferralCode(): Promise<string> {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code: string;
+    let isUnique = false;
+
+    while (!isUnique) {
+      code = '';
+      for (let i = 0; i < 8; i++) {
+        code += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+
+      const exists = await this.prisma.user.findFirst({ where: { referralCode: code } });
+      if (!exists) {
+        isUnique = true;
+      }
+    }
+
+    return code!;
   }
 
   /**

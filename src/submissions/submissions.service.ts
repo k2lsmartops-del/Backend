@@ -89,11 +89,13 @@ export interface StatsResult {
  * KPIs Production
  */
 interface ProductionKPIs {
-  activeAgents: number;
-  clientsApproached: number;
+  plannedWorkforce: number;  // Effectif prévu (configuré par le client)
+  recruitedWorkforce: number; // Effectif recruté (total commerciaux actifs)
+  activeTodayWorkforce: number; // Effectif actif (commerciaux ayant travaillé)
+  clientsApproached: number; // Clients approchés (nombre brut de soumissions)
   installations: number;
-  activations: number;
-  activeClients: number;
+  installationsPlusActivations: number; // Installations + Activations
+  activationRate: number; // Taux d'activation = activations / installations * 100
 }
 
 /**
@@ -157,6 +159,25 @@ export class SubmissionsService {
    * Doublon prospect : si prospectPhone existe déjà → signale sans bloquer.
    */
   async create(dto: CreateSubmissionDto, user: Omit<User, 'password'>) {
+    // ── Vérification du code de parrainage du commercial ──
+    if (user.role === Role.COMMERCIAL) {
+      const commercial = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { referralCode: true },
+      });
+
+      if (!commercial || !commercial.referralCode) {
+        throw new BadRequestException(
+          'Vous devez avoir un code de parrainage pour effectuer des soumissions. Contactez votre superviseur.'
+        );
+      }
+
+      // Utiliser automatiquement le code de parrainage du commercial si non fourni
+      if (!dto.sponsorCode) {
+        dto.sponsorCode = commercial.referralCode;
+      }
+    }
+
     // ── Idempotence : rejeu offline ──
     const existing = await this.prisma.submission.findUnique({
       where: { clientUuid: dto.clientUuid },
@@ -745,14 +766,89 @@ export class SubmissionsService {
     }
 
     // ── Production KPIs ──
-    // Agents actifs
-    const activeAgents = await this.prisma.user.count({
+    // Effectif prévu (configuré par le client - valeur statique pour l'instant)
+    const plannedWorkforce = 135; // TODO: Rendre configurable par client
+
+    // Effectif recruté (commerciaux actifs et fonctionnels)
+    const recruitedWorkforce = await this.prisma.user.count({
       where: { 
-        role: Role.COMMERCIAL, 
+        role: Role.COMMERCIAL,
         isActive: true,
         ...(effectiveClusterId && { clusterId: effectiveClusterId })
       }
     });
+
+    // Effectif actif (commerciaux qui ont travaillé pendant la période)
+    // - Jour: commerciaux ayant fait au moins 1 soumission aujourd'hui
+    // - Semaine: commerciaux ayant travaillé au moins 6 jours sur 7
+    // - Mois: commerciaux ayant travaillé au moins 4 semaines (24 jours)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let activeTodayWorkforce = 0;
+    
+    if (period === 'day') {
+      // Commerciaux ayant fait au moins 1 soumission aujourd'hui
+      const activeCommercials = await this.prisma.submission.groupBy({
+        by: ['commercialId'],
+        where: {
+          createdAt: { gte: today },
+          ...(effectiveClusterId && { clusterId: effectiveClusterId })
+        }
+      });
+      activeTodayWorkforce = activeCommercials.length;
+    } else if (period === 'week') {
+      // Commerciaux ayant travaillé au moins 6 jours sur 7 cette semaine
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      
+      // Récupérer les jours travaillés par commercial cette semaine
+      const submissions = await this.prisma.submission.findMany({
+        where: {
+          createdAt: { gte: weekStart },
+          ...(effectiveClusterId && { clusterId: effectiveClusterId })
+        },
+        select: { commercialId: true, createdAt: true }
+      });
+      
+      // Compter les jours distincts par commercial
+      const commercialDays = new Map<string, Set<string>>();
+      for (const sub of submissions) {
+        const dayKey = sub.createdAt.toISOString().split('T')[0];
+        if (!commercialDays.has(sub.commercialId)) {
+          commercialDays.set(sub.commercialId, new Set());
+        }
+        commercialDays.get(sub.commercialId)!.add(dayKey);
+      }
+      
+      // Compter ceux qui ont travaillé au moins 6 jours
+      activeTodayWorkforce = Array.from(commercialDays.values()).filter(days => days.size >= 6).length;
+    } else if (period === 'month') {
+      // Commerciaux ayant travaillé au moins 24 jours ce mois (4 semaines x 6 jours)
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      const submissions = await this.prisma.submission.findMany({
+        where: {
+          createdAt: { gte: monthStart },
+          ...(effectiveClusterId && { clusterId: effectiveClusterId })
+        },
+        select: { commercialId: true, createdAt: true }
+      });
+      
+      // Compter les jours distincts par commercial
+      const commercialDays = new Map<string, Set<string>>();
+      for (const sub of submissions) {
+        const dayKey = sub.createdAt.toISOString().split('T')[0];
+        if (!commercialDays.has(sub.commercialId)) {
+          commercialDays.set(sub.commercialId, new Set());
+        }
+        commercialDays.get(sub.commercialId)!.add(dayKey);
+      }
+      
+      // Compter ceux qui ont travaillé au moins 24 jours (4 semaines x 6 jours)
+      activeTodayWorkforce = Array.from(commercialDays.values()).filter(days => days.size >= 24).length;
+    }
 
     // Installations (appStatus = INSTALLED ou INSTALLED_ACTIVATED)
     const installations = await this.prisma.submission.count({
@@ -774,33 +870,37 @@ export class SubmissionsService {
       }
     });
 
-    // Clients actifs (marchands validés)
-    const activeClients = await this.prisma.submission.count({
-      where: { ...where, type: SubmissionType.MARCHAND, status: SubmissionStatus.VALIDATED }
+    // Clients approchés (nombre brut de toutes les soumissions - prospects + marchands)
+    const clientsApproached = await this.prisma.submission.count({
+      where: { ...where }
     });
 
-    // Clients approchés (prospects validés + marchands validés)
-    const prospectsValidated = await this.prisma.submission.count({
-      where: { ...where, type: SubmissionType.PROSPECT, status: SubmissionStatus.VALIDATED }
-    });
-    const clientsApproached = prospectsValidated + activeClients;
+    // Taux d'activation = activations / installations * 100
+    const activationRate = installations > 0 
+      ? Math.round((activations / installations) * 1000) / 10 // Arrondi à 1 décimale
+      : 0;
+
+    // Installations + Activations
+    const installationsPlusActivations = installations + activations;
 
     const production: ProductionKPIs = {
-      activeAgents,
+      plannedWorkforce,
+      recruitedWorkforce,
+      activeTodayWorkforce,
       clientsApproached,
       installations,
-      activations,
-      activeClients
+      installationsPlusActivations,
+      activationRate,
     };
 
     // ── Performance KPIs ──
     // Objectif selon la période (1620/jour pour 135 commerciaux = 12/jour par commercial)
     // Jour: 12, Semaine: 12*7=84, Mois: 12*30=360
     const quotaPerAgent = period === 'day' ? 12 : period === 'week' ? 84 : 360;
-    const objective = activeAgents * quotaPerAgent;
+    const objective = activeTodayWorkforce * quotaPerAgent;
     const achieved = clientsApproached;
     const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
-    const productivityPerAgent = activeAgents > 0 ? Math.round(achieved / activeAgents) : 0;
+    const productivityPerAgent = activeTodayWorkforce > 0 ? Math.round(achieved / activeTodayWorkforce) : 0;
 
     // Performance par cluster
     const clusters = await this.prisma.cluster.findMany({
@@ -880,7 +980,7 @@ export class SubmissionsService {
     const score = Math.round(
       (Math.min(achievementPercent, 100) + 
        qualityValidationRate + 
-       (activeAgents > 0 ? 100 : 0)) / 3
+       (activeTodayWorkforce > 0 ? 100 : 0)) / 3
     );
 
     const pilotage: PilotageKPIs = {

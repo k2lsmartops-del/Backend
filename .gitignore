@@ -9,4 +9,3 @@ node_modules
 
 # Scripts de test/debug (ne pas déployer)
 src/users/test-login.script.ts
-scripts/
