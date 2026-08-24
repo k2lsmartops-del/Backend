@@ -94,10 +94,12 @@ export class UsersService {
     // Génère le matricule automatiquement
     const matricule = await this.generateMatricule(dto.role);
 
-    // Génère le code de parrainage pour les commerciaux
+    // Génère le code de parrainage pour les commerciaux (si non fourni)
     let sponsorCode: string | undefined;
     if (dto.role === Role.COMMERCIAL) {
-      sponsorCode = await this.generateSponsorCode();
+      sponsorCode = dto.sponsorCode && dto.sponsorCode.trim()
+        ? dto.sponsorCode.trim().toUpperCase()
+        : await this.generateSponsorCode();
     }
 
     // Hash le mot de passe

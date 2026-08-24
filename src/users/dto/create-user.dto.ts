@@ -53,4 +53,9 @@ export class CreateUserDto {
   @IsUUID('4', { message: 'ID de superviseur invalide' })
   supervisorId?: string;
 
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  sponsorCode?: string;
+
 }
