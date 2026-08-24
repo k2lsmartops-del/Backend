@@ -1,5 +1,5 @@
 import { AppStatus, SubmissionType, SyncStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -89,6 +89,10 @@ export class CreateSubmissionDto {
   prospectGender?: string;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value == null || Number.isNaN(Number(value))) return undefined;
+    return Number(value);
+  })
   @IsInt()
   @Min(0)
   prospectAge?: number;
