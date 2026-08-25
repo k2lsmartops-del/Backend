@@ -61,7 +61,7 @@ const SUBMISSION_SELECT = {
   validatedAt: true,
   validationComment: true,
   // Relations
-  commercial: { select: { id: true, fullName: true, matricule: true } },
+  commercial: { select: { id: true, fullName: true, matricule: true, sponsorCode: true } },
   validator: { select: { id: true, fullName: true, matricule: true } },
   photos: { select: { id: true, url: true, category: true } },
   clusterId: true,
