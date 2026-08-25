@@ -977,10 +977,13 @@ export class SubmissionsService {
     }
 
     // Score global (moyenne des indicateurs)
+    const workforceRate = recruitedWorkforce > 0
+      ? Math.min((activeTodayWorkforce / recruitedWorkforce) * 100, 100)
+      : 0;
     const score = Math.round(
       (Math.min(achievementPercent, 100) + 
        qualityValidationRate + 
-       (activeTodayWorkforce > 0 ? 100 : 0)) / 3
+       workforceRate) / 3
     );
 
     const pilotage: PilotageKPIs = {
