@@ -1029,9 +1029,9 @@ export class UsersService {
     if (currentUser.role === Role.SUPERVISEUR) {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { supervisorId: true },
+        select: { supervisorId: true, clusterId: true },
       });
-      if (!user || user.supervisorId !== currentUser.id) {
+      if (!user || (user.supervisorId !== currentUser.id && user.clusterId !== currentUser.clusterId)) {
         throw new ForbiddenException('Vous ne pouvez voir que les statistiques de vos commerciaux');
       }
     }
@@ -1095,9 +1095,9 @@ export class UsersService {
     if (currentUser.role === Role.SUPERVISEUR) {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { supervisorId: true },
+        select: { supervisorId: true, clusterId: true },
       });
-      if (!user || user.supervisorId !== currentUser.id) {
+      if (!user || (user.supervisorId !== currentUser.id && user.clusterId !== currentUser.clusterId)) {
         throw new ForbiddenException('Vous ne pouvez voir que les paiements de vos commerciaux');
       }
     }
