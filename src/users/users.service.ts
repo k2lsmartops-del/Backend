@@ -132,7 +132,7 @@ export class UsersService {
    */
   async findAll(
     query: QueryUsersDto,
-    currentUser?: { role: Role; clusterId?: string | null },
+    currentUser?: { id?: string; role: Role; clusterId?: string | null },
   ) {
     const {
       page = 1,
@@ -158,7 +158,7 @@ export class UsersService {
           break;
         case Role.SUPERVISEUR:
           // Ne voit que ses commerciaux
-          where.supervisorId = currentUser.clusterId ? undefined : undefined;
+          where.supervisorId = currentUser.id;
           where.role = Role.COMMERCIAL;
           break;
         case Role.ADMIN:
