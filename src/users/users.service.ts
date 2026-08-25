@@ -213,7 +213,7 @@ export class UsersService {
    */
   async findOne(
     id: string,
-    currentUser?: { id?: string; role: Role },
+    currentUser?: { id?: string; role: Role; clusterId?: string | null },
   ) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -230,9 +230,9 @@ export class UsersService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    // SUPERVISEUR ne peut voir que ses propres commerciaux
+    // SUPERVISEUR ne peut voir que ses commerciaux (directement rattachés ou du cluster)
     if (currentUser?.role === Role.SUPERVISEUR) {
-      if (user.supervisorId !== currentUser.id) {
+      if (user.supervisorId !== currentUser.id && user.clusterId !== currentUser.clusterId) {
         throw new ForbiddenException('Accès non autorisé à cet utilisateur');
       }
     }
