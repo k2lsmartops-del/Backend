@@ -34,7 +34,7 @@ export class UsersController {
   @Get('team')
   @Roles(Role.SUPERVISEUR)
   getTeam(@CurrentUser() user: Omit<User, 'password'>) {
-    return this.usersService.getTeam(user.id);
+    return this.usersService.getTeam(user.id, user.clusterId);
   }
 
   /**

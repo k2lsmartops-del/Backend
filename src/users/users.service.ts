@@ -804,13 +804,13 @@ export class UsersService {
   }
 
   /**
-   * Récupère l'équipe d'un superviseur (commerciaux rattachés).
+   * Récupère l'équipe d'un superviseur (commerciaux du cluster).
    * Inclut des statistiques de soumissions pour chaque membre.
    */
-  async getTeam(supervisorId: string) {
+  async getTeam(supervisorId: string, clusterId?: string | null) {
     const members = await this.prisma.user.findMany({
       where: {
-        supervisorId,
+        ...(clusterId ? { clusterId } : { supervisorId }),
         role: Role.COMMERCIAL,
       },
       select: {
