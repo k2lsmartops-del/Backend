@@ -31,32 +31,51 @@ export class CommunesService {
   /**
    * Récupère les communes et quartiers du cluster de l'utilisateur.
    * Pour les commerciaux : retourne les communes de leur cluster avec tous les quartiers.
+   * Si aucune commune n'est assignée au cluster, retourne toutes les communes.
    * Permet la sélection rapide lors de la création de soumission.
    */
   async findByUserCluster(user: User) {
-    if (!user.clusterId) {
-      return { communes: [], message: 'Aucun cluster assigné' };
-    }
+    let cluster: { id: string; name: string } | null = null;
+    let communes: { id: string; name: string; quartiers: { id: string; name: string }[] }[] = [];
 
-    const communes = await this.prisma.commune.findMany({
-      where: { clusterId: user.clusterId },
-      orderBy: { name: 'asc' },
-      include: {
-        quartiers: {
-          orderBy: { name: 'asc' },
-          select: {
-            id: true,
-            name: true,
+    if (user.clusterId) {
+      // Récupérer le cluster
+      cluster = await this.prisma.cluster.findUnique({
+        where: { id: user.clusterId },
+        select: { id: true, name: true },
+      });
+
+      // Récupérer les communes du cluster
+      communes = await this.prisma.commune.findMany({
+        where: { clusterId: user.clusterId },
+        orderBy: { name: 'asc' },
+        include: {
+          quartiers: {
+            orderBy: { name: 'asc' },
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    });
+      });
+    }
 
-    // Récupérer aussi le nom du cluster
-    const cluster = await this.prisma.cluster.findUnique({
-      where: { id: user.clusterId },
-      select: { id: true, name: true },
-    });
+    // Fallback : si aucune commune assignée au cluster, retourner toutes les communes
+    if (communes.length === 0) {
+      communes = await this.prisma.commune.findMany({
+        orderBy: { name: 'asc' },
+        include: {
+          quartiers: {
+            orderBy: { name: 'asc' },
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+    }
 
     return {
       cluster,
