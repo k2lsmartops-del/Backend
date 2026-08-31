@@ -897,7 +897,7 @@ export class SubmissionsService {
     // Objectif selon la période (1485/jour pour 135 commerciaux = 11/jour par commercial)
     // Jour: 11, Semaine: 11*7=77, Mois: 11*30=330
     const quotaPerAgent = period === 'day' ? 11 : period === 'week' ? 77 : 330;
-    const objective = activeTodayWorkforce * quotaPerAgent;
+    const objective = recruitedWorkforce * quotaPerAgent;
     const achieved = clientsApproached;
     const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
     const productivityPerAgent = activeTodayWorkforce > 0 ? Math.round(achieved / activeTodayWorkforce) : 0;
