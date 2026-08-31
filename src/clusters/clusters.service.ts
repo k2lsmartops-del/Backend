@@ -81,7 +81,7 @@ export class ClustersService {
       include: {
         supervisor: { select: { id: true, fullName: true, matricule: true, phone: true } },
         communes: { select: { id: true, name: true } },
-        _count: { select: { members: true } },
+        _count: { select: { members: { where: { role: 'COMMERCIAL', isActive: true } } } },
       },
     });
   }
@@ -100,7 +100,7 @@ export class ClustersService {
         include: {
           supervisor: { select: { id: true, fullName: true, matricule: true, phone: true } },
           communes: { select: { id: true, name: true } },
-          _count: { select: { members: true } },
+          _count: { select: { members: { where: { role: 'COMMERCIAL', isActive: true } } } },
         },
       });
     }
