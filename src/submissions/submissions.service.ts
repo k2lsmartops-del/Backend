@@ -894,9 +894,9 @@ export class SubmissionsService {
     };
 
     // ── Performance KPIs ──
-    // Objectif selon la période (1620/jour pour 135 commerciaux = 12/jour par commercial)
-    // Jour: 12, Semaine: 12*7=84, Mois: 12*30=360
-    const quotaPerAgent = period === 'day' ? 12 : period === 'week' ? 84 : 360;
+    // Objectif selon la période (1485/jour pour 135 commerciaux = 11/jour par commercial)
+    // Jour: 11, Semaine: 11*7=77, Mois: 11*30=330
+    const quotaPerAgent = period === 'day' ? 11 : period === 'week' ? 77 : 330;
     const objective = activeTodayWorkforce * quotaPerAgent;
     const achieved = clientsApproached;
     const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
