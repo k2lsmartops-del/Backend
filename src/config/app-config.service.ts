@@ -134,10 +134,13 @@ export class AppConfigService implements OnModuleInit {
 
   /**
    * Calcule l'objectif global quotidien.
-   * Formule : COUNT(commerciaux actifs, non supprimés) × objectifQuotidienParCommercial
+   * Formule : effectifPrevu × objectifQuotidienParCommercial
    * 
-   * @param clusterId - Optionnel, pour filtrer par cluster
-   * @returns { objectifGlobal, commerciauxActifs, objectifParCommercial }
+   * L'effectif prévu (135 par défaut) sert de BASE fixe à l'objectif.
+   * Les commerciaux actifs réels sont retournés à titre informatif.
+   * 
+   * @param clusterId - Optionnel, pour filtrer par cluster (non utilisé pour la base fixe)
+   * @returns { objectifGlobal, commerciauxActifs, objectifParCommercial, effectifPrevu }
    */
   async getObjectifGlobalQuotidien(clusterId?: string): Promise<{
     objectifGlobal: number;
@@ -145,7 +148,12 @@ export class AppConfigService implements OnModuleInit {
     objectifParCommercial: number;
     effectifPrevu: number;
   }> {
-    // Compter les commerciaux actifs (non supprimés)
+    // L'effectif prévu est la base de calcul de l'objectif (ex: 135)
+    const effectifPrevu = await this.getEffectifPrevu();
+    const objectifParCommercial = await this.getObjectifQuotidienParCommercial();
+    const objectifGlobal = effectifPrevu * objectifParCommercial;
+
+    // Commerciaux actifs : informationnel (KPI de suivi)
     const commerciauxActifs = await this.prisma.user.count({
       where: {
         role: Role.COMMERCIAL,
@@ -154,10 +162,6 @@ export class AppConfigService implements OnModuleInit {
         ...(clusterId && { clusterId }),
       },
     });
-
-    const objectifParCommercial = await this.getObjectifQuotidienParCommercial();
-    const effectifPrevu = await this.getEffectifPrevu();
-    const objectifGlobal = commerciauxActifs * objectifParCommercial;
 
     return {
       objectifGlobal,
@@ -169,9 +173,9 @@ export class AppConfigService implements OnModuleInit {
 
   /**
    * Calcule l'objectif pour une période donnée.
-   * - Jour: objectifQuotidien
-   * - Semaine: objectifQuotidien × 7
-   * - Mois: objectifQuotidien × 30
+   * - Jour: effectifPrevu × objectifQuotidien × 1
+   * - Semaine: effectifPrevu × objectifQuotidien × 7
+   * - Mois: effectifPrevu × objectifQuotidien × 30
    */
   async getObjectifPourPeriode(
     period: 'day' | 'week' | 'month',
@@ -180,17 +184,19 @@ export class AppConfigService implements OnModuleInit {
     objectifTotal: number;
     commerciauxActifs: number;
     objectifParCommercial: number;
+    effectifPrevu: number;
     multiplicateur: number;
   }> {
-    const { commerciauxActifs, objectifParCommercial } = await this.getObjectifGlobalQuotidien(clusterId);
+    const { objectifGlobal, commerciauxActifs, objectifParCommercial, effectifPrevu } = await this.getObjectifGlobalQuotidien(clusterId);
     
     const multiplicateur = period === 'day' ? 1 : period === 'week' ? 7 : 30;
-    const objectifTotal = commerciauxActifs * objectifParCommercial * multiplicateur;
+    const objectifTotal = effectifPrevu * objectifParCommercial * multiplicateur;
 
     return {
       objectifTotal,
       commerciauxActifs,
       objectifParCommercial,
+      effectifPrevu,
       multiplicateur,
     };
   }

@@ -771,10 +771,12 @@ export class SubmissionsService {
 
     // ── Production KPIs ──
     // Récupérer les paramètres de configuration
+    // effectifPrevu = BASE de l'objectif (ex: 135)
+    // commerciauxActifs = EFFECTIF RÉEL recruté et actif (info)
     const configData = await this.appConfig.getObjectifGlobalQuotidien(effectiveClusterId);
     const plannedWorkforce = configData.effectifPrevu;
 
-    // Effectif recruté (commerciaux actifs et fonctionnels)
+    // Effectif recruté réel (commerciaux actifs et non supprimés)
     const recruitedWorkforce = configData.commerciauxActifs;
 
     // Effectif actif (commerciaux qui ont travaillé pendant la période)

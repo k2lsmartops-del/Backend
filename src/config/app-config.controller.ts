@@ -29,7 +29,7 @@ export class AppConfigController {
         commerciauxActifs: objectifGlobal.commerciauxActifs,
         objectifParCommercial: objectifGlobal.objectifParCommercial,
         effectifPrevu: objectifGlobal.effectifPrevu,
-        formule: `${objectifGlobal.commerciauxActifs} commerciaux × ${objectifGlobal.objectifParCommercial} = ${objectifGlobal.objectifGlobal} soumissions/jour`,
+        formule: `${objectifGlobal.effectifPrevu} effectif prévu × ${objectifGlobal.objectifParCommercial} = ${objectifGlobal.objectifGlobal} soumissions/jour`,
       },
     };
   }
@@ -65,7 +65,7 @@ export class AppConfigController {
         commerciauxActifs: objectifGlobal.commerciauxActifs,
         objectifParCommercial: objectifGlobal.objectifParCommercial,
         effectifPrevu: objectifGlobal.effectifPrevu,
-        formule: `${objectifGlobal.commerciauxActifs} commerciaux × ${objectifGlobal.objectifParCommercial} = ${objectifGlobal.objectifGlobal} soumissions/jour`,
+        formule: `${objectifGlobal.effectifPrevu} effectif prévu × ${objectifGlobal.objectifParCommercial} = ${objectifGlobal.objectifGlobal} soumissions/jour`,
       },
     };
   }
