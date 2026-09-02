@@ -3,6 +3,7 @@ import { CreateClusterDto } from './dto/create-cluster.dto';
 import { UpdateClusterDto } from './dto/update-cluster.dto';
 export declare class ClustersService {
     private prisma;
+    private readonly logger;
     constructor(prisma: PrismaService);
     create(dto: CreateClusterDto): Promise<{
         supervisor: {
@@ -13,11 +14,11 @@ export declare class ClustersService {
         } | null;
         members: {
             id: string;
+            isActive: boolean;
             matricule: string;
             phone: string;
             fullName: string;
             role: import("@prisma/client").$Enums.Role;
-            isActive: boolean;
         }[];
         communes: {
             id: string;
@@ -31,12 +32,12 @@ export declare class ClustersService {
         };
     } & {
         id: string;
+        name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         supervisorId: string | null;
-        name: string;
-        description: string | null;
     }>;
     findAll(): Promise<({
         supervisor: {
@@ -54,12 +55,12 @@ export declare class ClustersService {
         };
     } & {
         id: string;
+        name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         supervisorId: string | null;
-        name: string;
-        description: string | null;
     })[]>;
     findAllFiltered(currentUser: {
         role: string;
@@ -80,12 +81,12 @@ export declare class ClustersService {
         };
     } & {
         id: string;
+        name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         supervisorId: string | null;
-        name: string;
-        description: string | null;
     })[]>;
     findOne(id: string): Promise<{
         supervisor: {
@@ -96,11 +97,11 @@ export declare class ClustersService {
         } | null;
         members: {
             id: string;
+            isActive: boolean;
             matricule: string;
             phone: string;
             fullName: string;
             role: import("@prisma/client").$Enums.Role;
-            isActive: boolean;
         }[];
         communes: {
             id: string;
@@ -114,12 +115,12 @@ export declare class ClustersService {
         };
     } & {
         id: string;
+        name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         supervisorId: string | null;
-        name: string;
-        description: string | null;
     }>;
     update(id: string, dto: UpdateClusterDto): Promise<{
         supervisor: {
@@ -130,11 +131,11 @@ export declare class ClustersService {
         } | null;
         members: {
             id: string;
+            isActive: boolean;
             matricule: string;
             phone: string;
             fullName: string;
             role: import("@prisma/client").$Enums.Role;
-            isActive: boolean;
         }[];
         communes: {
             id: string;
@@ -148,21 +149,21 @@ export declare class ClustersService {
         };
     } & {
         id: string;
+        name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         supervisorId: string | null;
-        name: string;
-        description: string | null;
     }>;
     remove(id: string): Promise<{
         id: string;
+        name: string;
+        description: string | null;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
         supervisorId: string | null;
-        name: string;
-        description: string | null;
     }>;
     private validateSupervisor;
     assignSupervisor(clusterId: string, newSupervisorId: string): Promise<{

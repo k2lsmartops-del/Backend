@@ -6,6 +6,9 @@ export declare class BulkImportRowDto {
     password?: string;
     cluster?: string;
     zone?: string;
+    sponsorCode?: string;
+    commune?: string;
+    habitation?: string;
 }
 export declare class BulkImportDto {
     rows: BulkImportRowDto[];

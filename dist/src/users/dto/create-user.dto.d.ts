@@ -8,4 +8,5 @@ export declare class CreateUserDto {
     status?: AgentStatus;
     clusterId?: string;
     supervisorId?: string;
+    sponsorCode?: string;
 }

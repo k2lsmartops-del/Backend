@@ -8,13 +8,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var ClustersService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClustersService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
-let ClustersService = class ClustersService {
+let ClustersService = ClustersService_1 = class ClustersService {
     prisma;
+    logger = new common_1.Logger(ClustersService_1.name);
     constructor(prisma) {
         this.prisma = prisma;
     }
@@ -250,7 +252,7 @@ let ClustersService = class ClustersService {
                 },
                 data: { supervisorId: newSupervisorId },
             });
-            console.log(`[Cluster] ${cluster.name}: Superviseur ${newSup.fullName} assigné, ${updateResult.count} commerciaux mis à jour`);
+            this.logger.log(`Cluster "${cluster.name}": superviseur ${newSup.id} assigné, ${updateResult.count} commerciaux mis à jour`);
             return {
                 clusterId,
                 clusterName: cluster.name,
@@ -286,13 +288,13 @@ let ClustersService = class ClustersService {
                 where: { id: clusterId },
                 data: { supervisorId: null },
             });
-            console.log(`[Cluster] ${cluster.name}: Superviseur retiré`);
+            this.logger.log(`Cluster "${cluster.name}": superviseur retiré`);
             return { clusterId, clusterName: cluster.name, message: 'Superviseur retiré avec succès' };
         });
     }
 };
 exports.ClustersService = ClustersService;
-exports.ClustersService = ClustersService = __decorate([
+exports.ClustersService = ClustersService = ClustersService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], ClustersService);

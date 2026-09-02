@@ -1119,14 +1119,14 @@ export class UsersService {
         where: { commercialId: userId, status: 'VALIDATED', appStatus: 'INSTALLED' },
       }),
       this.prisma.submission.count({
-        where: { commercialId: userId, status: 'VALIDATED', appStatus: 'INSTALLED_ACTIVATED' },
+        where: { commercialId: userId, status: 'VALIDATED', appStatus: 'INSTALLED_TRANSACTIONS' },
       }),
     ]);
 
     return {
       totalValidated,
       installedCount,
-      installedActivatedCount,
+      installedTransactionsCount: installedActivatedCount,
       note: 'Les prix par type d\'installation sont à définir. Le calcul du paiement se fait manuellement.',
     };
   }

@@ -7,4 +7,7 @@ export declare class QuerySubmissionsDto extends PaginationDto {
     commercialId?: string;
     commune?: string;
     search?: string;
+    startDate?: Date;
+    endDate?: Date;
+    period?: 'day' | 'week' | 'month';
 }

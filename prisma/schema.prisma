@@ -56,7 +56,7 @@ enum SubmissionStatus {
 enum AppStatus {
   NOT_INSTALLED
   INSTALLED
-  INSTALLED_ACTIVATED
+  INSTALLED_TRANSACTIONS
 }
 
 enum SyncStatus {

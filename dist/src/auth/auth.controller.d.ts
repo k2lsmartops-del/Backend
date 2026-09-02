@@ -12,21 +12,27 @@ export declare class AuthController {
     }>;
     getMe(user: Omit<User, 'password'>): Omit<{
         id: string;
-        matricule: string;
-        email: string | null;
-        phone: string;
-        fullName: string;
-        password: string;
-        role: import("@prisma/client").$Enums.Role;
-        status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        supervisorId: string | null;
+        matricule: string;
+        email: string | null;
+        phone: string;
+        sponsorCode: string | null;
+        fullName: string;
+        gender: string | null;
+        password: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        commune: string | null;
+        habitation: string | null;
         appInstalled: boolean;
         isOnline: boolean;
         lastActive: Date | null;
         lastLogin: Date | null;
+        twoFactorEnabled: boolean;
+        twoFactorSecret: string | null;
         clusterId: string | null;
-        supervisorId: string | null;
     }, "password">;
 }

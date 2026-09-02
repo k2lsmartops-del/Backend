@@ -13,6 +13,7 @@ exports.QuerySubmissionsDto = void 0;
 const client_1 = require("@prisma/client");
 const class_validator_1 = require("class-validator");
 const pagination_dto_1 = require("../../common/dto/pagination.dto");
+const class_transformer_1 = require("class-transformer");
 class QuerySubmissionsDto extends pagination_dto_1.PaginationDto {
     type;
     status;
@@ -20,6 +21,9 @@ class QuerySubmissionsDto extends pagination_dto_1.PaginationDto {
     commercialId;
     commune;
     search;
+    startDate;
+    endDate;
+    period;
 }
 exports.QuerySubmissionsDto = QuerySubmissionsDto;
 __decorate([
@@ -52,4 +56,21 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], QuerySubmissionsDto.prototype, "search", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDate)(),
+    (0, class_transformer_1.Type)(() => Date),
+    __metadata("design:type", Date)
+], QuerySubmissionsDto.prototype, "startDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsDate)(),
+    (0, class_transformer_1.Type)(() => Date),
+    __metadata("design:type", Date)
+], QuerySubmissionsDto.prototype, "endDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(['day', 'week', 'month']),
+    __metadata("design:type", String)
+], QuerySubmissionsDto.prototype, "period", void 0);
 //# sourceMappingURL=query-submissions.dto.js.map

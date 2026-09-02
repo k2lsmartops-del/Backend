@@ -850,23 +850,23 @@ export class SubmissionsService {
       activeTodayWorkforce = Array.from(commercialDays.values()).filter(days => days.size >= 24).length;
     }
 
-    // Installations (appStatus = INSTALLED ou INSTALLED_ACTIVATED)
+    // Installations (appStatus = INSTALLED ou INSTALLED_TRANSACTIONS)
     const installations = await this.prisma.submission.count({
       where: { 
         ...where, 
         type: SubmissionType.PROSPECT, 
         status: SubmissionStatus.VALIDATED,
-        appStatus: { in: ['INSTALLED', 'INSTALLED_ACTIVATED'] }
+        appStatus: { in: ['INSTALLED', 'INSTALLED_TRANSACTIONS'] }
       }
     });
 
-    // Activations (appStatus = INSTALLED_ACTIVATED)
+    // Activations (appStatus = INSTALLED_TRANSACTIONS)
     const activations = await this.prisma.submission.count({
       where: { 
         ...where, 
         type: SubmissionType.PROSPECT, 
         status: SubmissionStatus.VALIDATED,
-        appStatus: 'INSTALLED_ACTIVATED'
+        appStatus: 'INSTALLED_TRANSACTIONS'
       }
     });
 

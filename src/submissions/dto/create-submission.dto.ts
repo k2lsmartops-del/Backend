@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Matches,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -78,6 +79,7 @@ export class CreateSubmissionDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^\\d{10}$/, { message: 'Le numéro de téléphone doit contenir exactement 10 chiffres' })
   prospectPhone?: string;
 
   @IsOptional()

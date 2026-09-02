@@ -28,7 +28,7 @@ let UsersController = class UsersController {
         this.usersService = usersService;
     }
     getTeam(user) {
-        return this.usersService.getTeam(user.id);
+        return this.usersService.getTeam(user.id, user.clusterId);
     }
     bulkImport(dto) {
         return this.usersService.bulkImport(dto.rows);
@@ -68,9 +68,33 @@ let UsersController = class UsersController {
     }
     changePassword(currentUser, id, body) {
         if (id !== currentUser.id) {
-            throw new Error('Vous ne pouvez modifier que votre propre mot de passe');
+            throw new common_1.ForbiddenException('Vous ne pouvez modifier que votre propre mot de passe');
         }
         return this.usersService.changePassword(id, body.password);
+    }
+    updateProfile(currentUser, id, body) {
+        if (id !== currentUser.id) {
+            throw new common_1.ForbiddenException('Vous ne pouvez modifier que votre propre profil');
+        }
+        return this.usersService.updateProfile(id, body);
+    }
+    enableTwoFactor(currentUser, id) {
+        if (id !== currentUser.id) {
+            throw new common_1.ForbiddenException('Vous ne pouvez activer le 2FA que pour votre propre compte');
+        }
+        return this.usersService.enableTwoFactor(id);
+    }
+    verifyTwoFactor(currentUser, id, body) {
+        if (id !== currentUser.id) {
+            throw new common_1.ForbiddenException('Vous ne pouvez vérifier le 2FA que pour votre propre compte');
+        }
+        return this.usersService.verifyAndActivateTwoFactor(id, body.token);
+    }
+    disableTwoFactor(currentUser, id, body) {
+        if (id !== currentUser.id) {
+            throw new common_1.ForbiddenException('Vous ne pouvez désactiver le 2FA que pour votre propre compte');
+        }
+        return this.usersService.disableTwoFactor(id, body.token);
     }
 };
 exports.UsersController = UsersController;
@@ -198,6 +222,41 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "changePassword", null);
+__decorate([
+    (0, common_1.Patch)(':id/profile'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.Post)(':id/two-factor/enable'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "enableTwoFactor", null);
+__decorate([
+    (0, common_1.Post)(':id/two-factor/verify'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "verifyTwoFactor", null);
+__decorate([
+    (0, common_1.Post)(':id/two-factor/disable'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id', common_1.ParseUUIDPipe)),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "disableTwoFactor", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     __metadata("design:paramtypes", [users_service_1.UsersService])

@@ -21,6 +21,7 @@ class CreateUserDto {
     status;
     clusterId;
     supervisorId;
+    sponsorCode;
 }
 exports.CreateUserDto = CreateUserDto;
 __decorate([
@@ -64,4 +65,10 @@ __decorate([
     (0, class_validator_1.IsUUID)('4', { message: 'ID de superviseur invalide' }),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "supervisorId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MinLength)(1),
+    __metadata("design:type", String)
+], CreateUserDto.prototype, "sponsorCode", void 0);
 //# sourceMappingURL=create-user.dto.js.map

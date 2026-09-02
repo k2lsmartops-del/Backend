@@ -41,11 +41,14 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var UsersService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UsersService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const bcrypt = __importStar(require("bcrypt"));
+const speakeasy = __importStar(require("speakeasy"));
+const QRCode = __importStar(require("qrcode"));
 const prisma_service_1 = require("../prisma/prisma.service");
 const USER_SELECT = {
     id: true,
@@ -56,14 +59,13 @@ const USER_SELECT = {
     role: true,
     status: true,
     isActive: true,
+    sponsorCode: true,
+    commune: true,
+    habitation: true,
     clusterId: true,
     supervisorId: true,
     createdAt: true,
     updatedAt: true,
-    appInstalled: true,
-    isOnline: true,
-    lastActive: true,
-    lastLogin: true,
     cluster: {
         select: {
             id: true,
@@ -73,8 +75,9 @@ const USER_SELECT = {
     },
     supervisor: { select: { id: true, fullName: true, matricule: true } },
 };
-let UsersService = class UsersService {
+let UsersService = UsersService_1 = class UsersService {
     prisma;
+    logger = new common_1.Logger(UsersService_1.name);
     constructor(prisma) {
         this.prisma = prisma;
     }
@@ -90,6 +93,12 @@ let UsersService = class UsersService {
         await this.validateRoleAssignments(dto.role, effectiveClusterId, dto.supervisorId);
         const clusterId = await this.resolveHierarchy(dto.role, dto.supervisorId, effectiveClusterId);
         const matricule = await this.generateMatricule(dto.role);
+        let sponsorCode;
+        if (dto.role === client_1.Role.COMMERCIAL) {
+            sponsorCode = dto.sponsorCode && dto.sponsorCode.trim()
+                ? dto.sponsorCode.trim().toUpperCase()
+                : await this.generateSponsorCode();
+        }
         const hashedPassword = await bcrypt.hash(dto.password, 12);
         const status = dto.status || client_1.AgentStatus.ACTIF;
         const isActive = status === client_1.AgentStatus.ACTIF;
@@ -103,6 +112,7 @@ let UsersService = class UsersService {
                 role: dto.role,
                 status,
                 isActive,
+                sponsorCode,
                 clusterId,
                 supervisorId: dto.supervisorId || null,
             },
@@ -116,14 +126,18 @@ let UsersService = class UsersService {
         if (currentUser) {
             switch (currentUser.role) {
                 case client_1.Role.COORDINATEUR:
+                    where.role = { in: [client_1.Role.SUPERVISEUR, client_1.Role.COMMERCIAL] };
                     break;
                 case client_1.Role.SUPERVISEUR:
-                    where.supervisorId = currentUser.clusterId ? undefined : undefined;
+                    where.supervisorId = currentUser.id;
                     where.role = client_1.Role.COMMERCIAL;
+                    break;
+                case client_1.Role.ADMIN:
+                    where.role = { not: client_1.Role.ADMIN };
                     break;
             }
         }
-        if (role && !where.role)
+        if (role)
             where.role = role;
         if (status)
             where.status = status;
@@ -175,7 +189,7 @@ let UsersService = class UsersService {
             throw new common_1.NotFoundException('Utilisateur non trouvé');
         }
         if (currentUser?.role === client_1.Role.SUPERVISEUR) {
-            if (user.supervisorId !== currentUser.id) {
+            if (user.supervisorId !== currentUser.id && user.clusterId !== currentUser.clusterId) {
                 throw new common_1.ForbiddenException('Accès non autorisé à cet utilisateur');
             }
         }
@@ -346,7 +360,7 @@ let UsersService = class UsersService {
         });
     }
     async bulkImport(rows) {
-        console.log(`[Import] Début de l'import de ${rows.length} ligne(s)`);
+        this.logger.log(`Import: début de l'import de ${rows.length} ligne(s)`);
         const norm = (v) => (v ?? '').toString().trim();
         const rolePriority = {
             COORDINATEUR: 1,
@@ -362,6 +376,9 @@ let UsersService = class UsersService {
             const fullName = norm(r.fullName);
             const phone = norm(r.phone);
             const email = norm(r.email) || null;
+            const sponsorCode = norm(r.sponsorCode) || null;
+            const commune = norm(r.commune) || null;
+            const habitation = norm(r.habitation) || null;
             try {
                 if (!fullName)
                     throw new common_1.BadRequestException('Nom complet requis');
@@ -371,12 +388,6 @@ let UsersService = class UsersService {
                 const existingUser = await this.prisma.user.findUnique({
                     where: { phone },
                 });
-                console.log('[IMPORT]', {
-                    ligne: rowNum,
-                    phone: phone,
-                    pwdProvided: !!norm(r.password),
-                    pwdLen: rawPassword.length,
-                });
                 if (rawPassword.length < 8) {
                     throw new common_1.BadRequestException('Le mot de passe doit contenir au moins 8 caractères');
                 }
@@ -384,8 +395,16 @@ let UsersService = class UsersService {
                     const existingEmail = await this.prisma.user.findUnique({
                         where: { email },
                     });
-                    if (existingEmail) {
+                    if (existingEmail && existingEmail.id !== existingUser?.id) {
                         throw new common_1.ConflictException(`Email ${email} déjà utilisé par ${existingEmail.matricule}`);
+                    }
+                }
+                if (sponsorCode) {
+                    const existingSponsorCode = await this.prisma.user.findFirst({
+                        where: { sponsorCode },
+                    });
+                    if (existingSponsorCode && existingSponsorCode.id !== existingUser?.id) {
+                        throw new common_1.ConflictException(`Code de parrainage "${sponsorCode}" déjà utilisé par ${existingSponsorCode.matricule}`);
                     }
                 }
                 const hashedPassword = await bcrypt.hash(rawPassword, 12);
@@ -405,6 +424,9 @@ let UsersService = class UsersService {
                                 status: client_1.AgentStatus.ACTIF,
                                 isActive: true,
                                 clusterId: null,
+                                sponsorCode,
+                                commune,
+                                habitation,
                             },
                         });
                         status = 'updated';
@@ -422,6 +444,9 @@ let UsersService = class UsersService {
                                 status: client_1.AgentStatus.ACTIF,
                                 isActive: true,
                                 clusterId: null,
+                                sponsorCode,
+                                commune,
+                                habitation,
                             },
                         });
                         status = 'created';
@@ -433,7 +458,7 @@ let UsersService = class UsersService {
                         fullName,
                         matricule,
                     });
-                    console.log(`[Import] Ligne ${rowNum}: COORDINATEUR ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`);
+                    this.logger.log(`Import ligne ${rowNum}: COORDINATEUR ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule})`);
                 }
                 else if (role === 'SUPERVISEUR' || role === 'COMMERCIAL') {
                     const clusterName = norm(r.cluster) || norm(r.zone);
@@ -465,6 +490,9 @@ let UsersService = class UsersService {
                                 status: client_1.AgentStatus.ACTIF,
                                 isActive: true,
                                 clusterId: cluster.id,
+                                sponsorCode,
+                                commune,
+                                habitation,
                             },
                         });
                         status = 'updated';
@@ -482,6 +510,9 @@ let UsersService = class UsersService {
                                 status: client_1.AgentStatus.ACTIF,
                                 isActive: true,
                                 clusterId: cluster.id,
+                                sponsorCode,
+                                commune,
+                                habitation,
                             },
                         });
                         userId = newUser.id;
@@ -489,7 +520,7 @@ let UsersService = class UsersService {
                     }
                     if (role === 'SUPERVISEUR') {
                         if (cluster.supervisorId && cluster.supervisorId !== userId) {
-                            console.warn(`[Import] ATTENTION: Le cluster "${clusterName}" a déjà un superviseur. Remplacement par ${fullName}.`);
+                            this.logger.warn(`Import ligne ${rowNum}: le cluster "${clusterName}" a déjà un superviseur — remplacement par ${matricule}.`);
                         }
                         await this.prisma.cluster.update({
                             where: { id: cluster.id },
@@ -503,19 +534,21 @@ let UsersService = class UsersService {
                         fullName,
                         matricule,
                     });
-                    console.log(`[Import] Ligne ${rowNum}: ${role} ${fullName} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) - Cluster: ${clusterName}`);
+                    this.logger.log(`Import ligne ${rowNum}: ${role} ${status === 'created' ? 'créé' : 'mis à jour'} (${matricule}) — cluster=${clusterName}`);
                 }
                 else {
                     throw new common_1.BadRequestException(`Rôle invalide: "${r.role}" (attendu: COORDINATEUR, SUPERVISEUR ou COMMERCIAL)`);
                 }
             }
             catch (e) {
+                const message = e instanceof Error ? e.message : 'Erreur inconnue';
+                this.logger.warn(`Import ligne ${rowNum} échouée (role=${role || '-'}): ${message}`);
                 results.push({
                     row: rowNum,
                     status: 'error',
                     role,
                     fullName,
-                    message: e instanceof Error ? e.message : 'Erreur inconnue',
+                    message,
                 });
             }
         }
@@ -523,22 +556,44 @@ let UsersService = class UsersService {
         const created = results.filter((r) => r.status === 'created').length;
         const updated = results.filter((r) => r.status === 'updated').length;
         const failed = results.filter((r) => r.status === 'error').length;
-        console.log(`[Import] Terminé: ${created} créé(s), ${updated} mis à jour, ${failed} échec(s) sur ${results.length} ligne(s)`);
+        this.logger.log(`Import terminé: ${created} créé(s), ${updated} mis à jour, ${failed} échec(s) sur ${results.length} ligne(s)`);
+        this.logger.log('Propagation des supervisorId sur les commerciaux...');
+        const clustersWithSupervisor = await this.prisma.cluster.findMany({
+            where: { supervisorId: { not: null } },
+            select: { id: true, name: true, supervisorId: true },
+        });
+        let commerciauxUpdated = 0;
+        for (const cluster of clustersWithSupervisor) {
+            const updateResult = await this.prisma.user.updateMany({
+                where: {
+                    clusterId: cluster.id,
+                    role: client_1.Role.COMMERCIAL,
+                    supervisorId: { not: cluster.supervisorId },
+                },
+                data: { supervisorId: cluster.supervisorId },
+            });
+            if (updateResult.count > 0) {
+                this.logger.log(`Cluster "${cluster.name}": ${updateResult.count} commerciaux rattachés au superviseur`);
+                commerciauxUpdated += updateResult.count;
+            }
+        }
+        this.logger.log(`Propagation terminée: ${commerciauxUpdated} commerciaux mis à jour au total`);
         return {
             total: results.length,
             created,
             updated,
             failed,
+            commerciauxUpdated,
             results,
         };
     }
     generateDefaultPassword() {
         return `K2l${Math.random().toString(36).slice(2, 8)}!`;
     }
-    async getTeam(supervisorId) {
+    async getTeam(supervisorId, clusterId) {
         const members = await this.prisma.user.findMany({
             where: {
-                supervisorId,
+                ...(clusterId ? { clusterId } : { supervisorId }),
                 role: client_1.Role.COMMERCIAL,
             },
             select: {
@@ -554,23 +609,27 @@ let UsersService = class UsersService {
             },
             orderBy: { fullName: 'asc' },
         });
-        return Promise.all(members.map(async (m) => {
-            const validatedCount = await this.prisma.submission.count({
-                where: {
-                    commercialId: m.id,
-                    status: 'VALIDATED',
-                },
-            });
-            return {
-                id: m.id,
-                fullName: m.fullName,
-                matricule: m.matricule,
-                phone: m.phone,
-                status: m.status,
-                submissionCount: m._count.submissions,
-                validatedCount,
-                lastActivity: m.submissions[0]?.createdAt || null,
-            };
+        if (members.length === 0)
+            return [];
+        const memberIds = members.map((m) => m.id);
+        const validatedCounts = await this.prisma.submission.groupBy({
+            by: ['commercialId'],
+            where: {
+                commercialId: { in: memberIds },
+                status: 'VALIDATED',
+            },
+            _count: { id: true },
+        });
+        const validatedMap = new Map(validatedCounts.map((v) => [v.commercialId, v._count.id]));
+        return members.map((m) => ({
+            id: m.id,
+            fullName: m.fullName,
+            matricule: m.matricule,
+            phone: m.phone,
+            status: m.status,
+            submissionCount: m._count.submissions,
+            validatedCount: validatedMap.get(m.id) ?? 0,
+            lastActivity: m.submissions[0]?.createdAt || null,
         }));
     }
     async checkDuplicates(phone, email, excludeId) {
@@ -650,13 +709,29 @@ let UsersService = class UsersService {
         }
         return matricule;
     }
+    async generateSponsorCode() {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code;
+        let isUnique = false;
+        while (!isUnique) {
+            code = '';
+            for (let i = 0; i < 8; i++) {
+                code += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            const exists = await this.prisma.user.findFirst({ where: { sponsorCode: code } });
+            if (!exists) {
+                isUnique = true;
+            }
+        }
+        return code;
+    }
     async getStats(userId, currentUser) {
         if (currentUser.role === client_1.Role.SUPERVISEUR) {
             const user = await this.prisma.user.findUnique({
                 where: { id: userId },
-                select: { supervisorId: true },
+                select: { supervisorId: true, clusterId: true },
             });
-            if (!user || user.supervisorId !== currentUser.id) {
+            if (!user || (user.supervisorId !== currentUser.id && user.clusterId !== currentUser.clusterId)) {
                 throw new common_1.ForbiddenException('Vous ne pouvez voir que les statistiques de vos commerciaux');
             }
         }
@@ -707,9 +782,9 @@ let UsersService = class UsersService {
         if (currentUser.role === client_1.Role.SUPERVISEUR) {
             const user = await this.prisma.user.findUnique({
                 where: { id: userId },
-                select: { supervisorId: true },
+                select: { supervisorId: true, clusterId: true },
             });
-            if (!user || user.supervisorId !== currentUser.id) {
+            if (!user || (user.supervisorId !== currentUser.id && user.clusterId !== currentUser.clusterId)) {
                 throw new common_1.ForbiddenException('Vous ne pouvez voir que les paiements de vos commerciaux');
             }
         }
@@ -754,9 +829,162 @@ let UsersService = class UsersService {
         });
         return { message: 'Mot de passe modifié avec succès' };
     }
+    async updateProfile(userId, data) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        const updateData = {};
+        if (data.fullName !== undefined) {
+            if (!data.fullName || data.fullName.trim().length === 0) {
+                throw new common_1.BadRequestException('Le nom complet est requis');
+            }
+            updateData.fullName = data.fullName.trim();
+        }
+        if (data.gender !== undefined) {
+            if (data.gender && !['M', 'F'].includes(data.gender)) {
+                throw new common_1.BadRequestException('Le genre doit être "M" (Masculin) ou "F" (Féminin)');
+            }
+            updateData.gender = data.gender || null;
+        }
+        if (data.phone !== undefined) {
+            if (!data.phone || data.phone.trim().length === 0) {
+                throw new common_1.BadRequestException('Le numéro de téléphone est requis');
+            }
+            const existingPhone = await this.prisma.user.findFirst({
+                where: { phone: data.phone, id: { not: userId } },
+            });
+            if (existingPhone) {
+                throw new common_1.ConflictException('Ce numéro de téléphone est déjà utilisé');
+            }
+            updateData.phone = data.phone.trim();
+        }
+        if (data.email !== undefined) {
+            if (data.email && data.email.trim().length > 0) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(data.email)) {
+                    throw new common_1.BadRequestException('Format d\'email invalide');
+                }
+                const existingEmail = await this.prisma.user.findFirst({
+                    where: { email: data.email, id: { not: userId } },
+                });
+                if (existingEmail) {
+                    throw new common_1.ConflictException('Cet email est déjà utilisé');
+                }
+                updateData.email = data.email.trim();
+            }
+        }
+        const updatedUser = await this.prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            select: USER_SELECT,
+        });
+        this.logger.log(`Utilisateur ${userId} a mis à jour son profil`);
+        return updatedUser;
+    }
+    async enableTwoFactor(userId) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (user.twoFactorEnabled) {
+            throw new common_1.BadRequestException('L\'authentification à double facteur est déjà activée');
+        }
+        const secret = speakeasy.generateSecret({
+            name: `K2L SmartOps (${user.fullName})`,
+            issuer: 'K2L SmartOps',
+        });
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { twoFactorSecret: secret.base32 },
+        });
+        const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url || '');
+        this.logger.log(`Utilisateur ${userId} a initié l'activation du 2FA`);
+        return {
+            secret: secret.base32,
+            qrCode: qrCodeUrl,
+            message: 'Scannez le QR code avec votre application d\'authentification et entrez le code pour activer',
+        };
+    }
+    async verifyAndActivateTwoFactor(userId, token) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (!user.twoFactorSecret) {
+            throw new common_1.BadRequestException('Aucun secret 2FA trouvé. Veuillez d\'abord activer le 2FA');
+        }
+        if (user.twoFactorEnabled) {
+            throw new common_1.BadRequestException('L\'authentification à double facteur est déjà activée');
+        }
+        const verified = speakeasy.totp.verify({
+            secret: user.twoFactorSecret,
+            encoding: 'base32',
+            token: token,
+            window: 2,
+        });
+        if (!verified) {
+            throw new common_1.BadRequestException('Code invalide');
+        }
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { twoFactorEnabled: true },
+        });
+        this.logger.log(`Utilisateur ${userId} a activé le 2FA`);
+        return { message: 'Authentification à double facteur activée avec succès' };
+    }
+    async disableTwoFactor(userId, token) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (!user.twoFactorEnabled) {
+            throw new common_1.BadRequestException('L\'authentification à double facteur n\'est pas activée');
+        }
+        const verified = speakeasy.totp.verify({
+            secret: user.twoFactorSecret,
+            encoding: 'base32',
+            token: token,
+            window: 2,
+        });
+        if (!verified) {
+            throw new common_1.BadRequestException('Code invalide');
+        }
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                twoFactorEnabled: false,
+                twoFactorSecret: null,
+            },
+        });
+        this.logger.log(`Utilisateur ${userId} a désactivé le 2FA`);
+        return { message: 'Authentification à double facteur désactivée avec succès' };
+    }
+    async verifyTwoFactorToken(userId, token) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+        });
+        if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+            return false;
+        }
+        return speakeasy.totp.verify({
+            secret: user.twoFactorSecret,
+            encoding: 'base32',
+            token: token,
+            window: 2,
+        });
+    }
 };
 exports.UsersService = UsersService;
-exports.UsersService = UsersService = __decorate([
+exports.UsersService = UsersService = UsersService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
 ], UsersService);

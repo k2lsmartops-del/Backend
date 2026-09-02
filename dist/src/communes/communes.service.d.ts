@@ -13,9 +13,9 @@ export declare class CommunesService {
         };
     } & {
         id: string;
+        name: string;
         createdAt: Date;
         clusterId: string | null;
-        name: string;
     })[]>;
     findOne(id: string): Promise<({
         cluster: {
@@ -24,15 +24,15 @@ export declare class CommunesService {
         } | null;
         quartiers: {
             id: string;
-            createdAt: Date;
             name: string;
+            createdAt: Date;
             communeId: string;
         }[];
     } & {
         id: string;
+        name: string;
         createdAt: Date;
         clusterId: string | null;
-        name: string;
     }) | null>;
     findByUserCluster(user: User): Promise<{
         communes: never[];

@@ -41,6 +41,7 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
@@ -49,21 +50,17 @@ const jwt_1 = require("@nestjs/jwt");
 const bcrypt = __importStar(require("bcrypt"));
 const crypto_1 = require("crypto");
 const prisma_service_1 = require("../prisma/prisma.service");
-let AuthService = class AuthService {
+let AuthService = AuthService_1 = class AuthService {
     prisma;
     jwtService;
     configService;
+    logger = new common_1.Logger(AuthService_1.name);
     constructor(prisma, jwtService, configService) {
         this.prisma = prisma;
         this.jwtService = jwtService;
         this.configService = configService;
     }
     async login(dto) {
-        console.log('[LOGIN]', {
-            identifiant: dto.identifiant,
-            pwdBytes: Buffer.from(dto.password, 'utf8').toString('hex'),
-            pwdLen: dto.password.length,
-        });
         const user = await this.prisma.user.findFirst({
             where: {
                 OR: [{ phone: dto.identifiant }, { email: dto.identifiant }],
@@ -73,30 +70,21 @@ let AuthService = class AuthService {
                 supervisor: { select: { id: true, fullName: true, matricule: true } },
             },
         });
-        console.log('[LOGIN]', {
-            identifiant: dto.identifiant,
-            userFound: !!user,
-            userPhone: user?.phone,
-            userMatricule: user?.matricule,
-            hashStored: user?.password?.substring(0, 30) + '...',
-        });
         if (!user) {
+            this.logger.warn(`Login échoué (identifiant inconnu): ${dto.identifiant}`);
             throw new common_1.UnauthorizedException('Identifiants invalides');
         }
         if (!user.isActive) {
+            this.logger.warn(`Login refusé (compte inactif): userId=${user.id} matricule=${user.matricule}`);
             throw new common_1.UnauthorizedException('Compte désactivé. Contactez votre administrateur.');
         }
         const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-        console.log('[LOGIN]', {
-            identifiant: dto.identifiant,
-            bcryptCompare: isPasswordValid,
-            pwdProvided: dto.password,
-            hashStored: user.password.substring(0, 30) + '...',
-        });
         if (!isPasswordValid) {
+            this.logger.warn(`Login échoué (mot de passe invalide): userId=${user.id} matricule=${user.matricule}`);
             throw new common_1.UnauthorizedException('Identifiants invalides');
         }
         const tokens = await this.generateTokens(user);
+        this.logger.log(`Login réussi: userId=${user.id} matricule=${user.matricule} role=${user.role}`);
         const { password, ...userWithoutPassword } = user;
         return {
             ...tokens,
@@ -191,7 +179,7 @@ let AuthService = class AuthService {
     }
 };
 exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         jwt_1.JwtService,

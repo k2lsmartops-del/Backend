@@ -6,6 +6,7 @@ import { QueryUsersDto } from './dto/query-users.dto';
 import { BulkImportRowDto } from './dto/bulk-import.dto';
 export declare class UsersService {
     private prisma;
+    private readonly logger;
     constructor(prisma: PrismaService);
     create(dto: CreateUserDto, currentUser?: {
         id?: string;
@@ -14,20 +15,17 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -42,28 +40,28 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     findAll(query: QueryUsersDto, currentUser?: {
+        id?: string;
         role: Role;
         clusterId?: string | null;
     }): Promise<{
         data: {
             id: string;
             matricule: string;
+            fullName: string;
             email: string | null;
             phone: string;
-            fullName: string;
             role: import("@prisma/client").$Enums.Role;
             status: import("@prisma/client").$Enums.AgentStatus;
             isActive: boolean;
+            sponsorCode: string | null;
+            commune: string | null;
+            habitation: string | null;
             createdAt: Date;
             updatedAt: Date;
-            appInstalled: boolean;
-            isOnline: boolean;
-            lastActive: Date | null;
-            lastLogin: Date | null;
-            clusterId: string | null;
-            supervisorId: string | null;
             cluster: {
                 id: string;
                 supervisor: {
@@ -78,6 +76,8 @@ export declare class UsersService {
                 matricule: string;
                 fullName: string;
             } | null;
+            clusterId: string | null;
+            supervisorId: string | null;
         }[];
         meta: {
             total: number;
@@ -89,23 +89,21 @@ export declare class UsersService {
     findOne(id: string, currentUser?: {
         id?: string;
         role: Role;
+        clusterId?: string | null;
     }): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -126,6 +124,8 @@ export declare class UsersService {
             fullName: string;
             isActive: boolean;
         }[];
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     update(id: string, dto: UpdateUserDto, currentUser?: {
         id?: string;
@@ -133,20 +133,17 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -161,6 +158,8 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     deactivate(id: string, currentUser?: {
         id?: string;
@@ -168,20 +167,17 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -196,6 +192,8 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     activate(id: string, currentUser?: {
         id?: string;
@@ -203,20 +201,17 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -231,24 +226,23 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     suspend(id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -263,6 +257,8 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     resetPassword(id: string, currentUser?: {
         id?: string;
@@ -277,20 +273,17 @@ export declare class UsersService {
     }): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -305,12 +298,15 @@ export declare class UsersService {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     bulkImport(rows: BulkImportRowDto[]): Promise<{
         total: number;
         created: number;
         updated: number;
         failed: number;
+        commerciauxUpdated: number;
         results: {
             row: number;
             status: "created" | "updated" | "error";
@@ -321,7 +317,7 @@ export declare class UsersService {
         }[];
     }>;
     private generateDefaultPassword;
-    getTeam(supervisorId: string): Promise<{
+    getTeam(supervisorId: string, clusterId?: string | null): Promise<{
         id: string;
         fullName: string;
         matricule: string;
@@ -335,6 +331,7 @@ export declare class UsersService {
     private validateRoleAssignments;
     private resolveHierarchy;
     private generateMatricule;
+    private generateSponsorCode;
     getStats(userId: string, currentUser: any): Promise<{
         totalSubmissions: number;
         validatedSubmissions: number;
@@ -352,4 +349,52 @@ export declare class UsersService {
     changePassword(userId: string, newPassword: string): Promise<{
         message: string;
     }>;
+    updateProfile(userId: string, data: {
+        fullName?: string;
+        gender?: string;
+        phone?: string;
+        email?: string;
+    }): Promise<{
+        id: string;
+        matricule: string;
+        fullName: string;
+        email: string | null;
+        phone: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        cluster: {
+            id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
+            name: string;
+        } | null;
+        supervisor: {
+            id: string;
+            matricule: string;
+            fullName: string;
+        } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+    }>;
+    enableTwoFactor(userId: string): Promise<{
+        secret: string;
+        qrCode: string;
+        message: string;
+    }>;
+    verifyAndActivateTwoFactor(userId: string, token: string): Promise<{
+        message: string;
+    }>;
+    disableTwoFactor(userId: string, token: string): Promise<{
+        message: string;
+    }>;
+    verifyTwoFactorToken(userId: string, token: string): Promise<boolean>;
 }

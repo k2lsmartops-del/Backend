@@ -51,7 +51,7 @@ const SUBMISSION_SELECT = {
     updatedAt: true,
     validatedAt: true,
     validationComment: true,
-    commercial: { select: { id: true, fullName: true, matricule: true } },
+    commercial: { select: { id: true, fullName: true, matricule: true, sponsorCode: true } },
     validator: { select: { id: true, fullName: true, matricule: true } },
     photos: { select: { id: true, url: true, category: true } },
     clusterId: true,
@@ -65,6 +65,18 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
         this.cache = cache;
     }
     async create(dto, user) {
+        if (user.role === client_1.Role.COMMERCIAL) {
+            const commercial = await this.prisma.user.findUnique({
+                where: { id: user.id },
+                select: { sponsorCode: true },
+            });
+            if (!commercial || !commercial.sponsorCode) {
+                throw new common_1.BadRequestException('Vous devez avoir un code de parrainage pour effectuer des soumissions. Contactez votre superviseur.');
+            }
+            if (!dto.sponsorCode) {
+                dto.sponsorCode = commercial.sponsorCode;
+            }
+        }
         const existing = await this.prisma.submission.findUnique({
             where: { clientUuid: dto.clientUuid },
             select: SUBMISSION_SELECT,
@@ -182,6 +194,7 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             }
             catch (err) {
                 const message = err instanceof Error ? err.message : 'Erreur inconnue';
+                this.logger.error(`Sync échouée clientUuid=${dto.clientUuid} commercialId=${user.id}: ${message}`, err instanceof Error ? err.stack : undefined);
                 results.push({
                     clientUuid: dto.clientUuid,
                     status: 'failed',
@@ -197,7 +210,7 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
         };
     }
     async findAll(query, user) {
-        const { type, status, clusterId, commercialId, commune, search, } = query;
+        const { type, status, clusterId, commercialId, commune, search, startDate, endDate, period, } = query;
         const page = Number(query.page) || 1;
         const limit = Number(query.limit) || 20;
         const skip = (page - 1) * limit;
@@ -229,6 +242,35 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             where.commercialId = commercialId;
         if (commune)
             where.commune = commune;
+        if (period) {
+            const now = new Date();
+            if (period === 'day') {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                where.createdAt = { gte: today };
+            }
+            else if (period === 'week') {
+                const weekStart = new Date();
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                weekStart.setHours(0, 0, 0, 0);
+                where.createdAt = { gte: weekStart };
+            }
+            else if (period === 'month') {
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                where.createdAt = { gte: monthStart };
+            }
+        }
+        else if (startDate || endDate) {
+            where.createdAt = {};
+            if (startDate) {
+                where.createdAt.gte = startDate;
+            }
+            if (endDate) {
+                const endOfDay = new Date(endDate);
+                endOfDay.setHours(23, 59, 59, 999);
+                where.createdAt.lte = endOfDay;
+            }
+        }
         if (search) {
             where.OR = [
                 { prospectFullName: { contains: search, mode: 'insensitive' } },
@@ -415,8 +457,8 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
             select: SUBMISSION_SELECT,
         });
     }
-    async getStats(user, clusterId) {
-        const cacheKey = `dashboard:stats:${user.role}:${user.id}:${clusterId || 'all'}`;
+    async getStats(user, clusterId, period = 'day') {
+        const cacheKey = `dashboard:stats:${user.role}:${user.id}:${clusterId || 'all'}:${period}`;
         const cached = await this.cache.get(cacheKey);
         if (cached) {
             this.logger.debug(`KPIs servis depuis le cache (${cacheKey})`);
@@ -437,108 +479,199 @@ let SubmissionsService = SubmissionsService_1 = class SubmissionsService {
         if (user.role === client_1.Role.CLIENT) {
             where.status = client_1.SubmissionStatus.VALIDATED;
         }
-        const [total, draft, submitted, validated, rejected, prospects, marchands,] = await Promise.all([
-            this.prisma.submission.count({ where }),
-            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.DRAFT } }),
-            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.SUBMITTED } }),
-            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.VALIDATED } }),
-            this.prisma.submission.count({ where: { ...where, status: client_1.SubmissionStatus.REJECTED } }),
-            this.prisma.submission.count({ where: { ...where, type: client_1.SubmissionType.PROSPECT } }),
-            this.prisma.submission.count({ where: { ...where, type: client_1.SubmissionType.MARCHAND } }),
-        ]);
+        const now = new Date();
+        if (period === 'day') {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            where.createdAt = { gte: today };
+        }
+        else if (period === 'week') {
+            const weekStart = new Date();
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            weekStart.setHours(0, 0, 0, 0);
+            where.createdAt = { gte: weekStart };
+        }
+        else if (period === 'month') {
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            where.createdAt = { gte: monthStart };
+        }
+        const plannedWorkforce = 135;
+        const recruitedWorkforce = await this.prisma.user.count({
+            where: {
+                role: client_1.Role.COMMERCIAL,
+                isActive: true,
+                ...(effectiveClusterId && { clusterId: effectiveClusterId })
+            }
+        });
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayWhere = { ...where, createdAt: { gte: today } };
-        const [todayTotal, todayValidated] = await Promise.all([
-            this.prisma.submission.count({ where: todayWhere }),
-            this.prisma.submission.count({ where: { ...todayWhere, status: client_1.SubmissionStatus.VALIDATED } }),
-        ]);
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-        const weekWhere = { ...where, createdAt: { gte: weekStart } };
-        const [weekTotal, weekValidated] = await Promise.all([
-            this.prisma.submission.count({ where: weekWhere }),
-            this.prisma.submission.count({ where: { ...weekWhere, status: client_1.SubmissionStatus.VALIDATED } }),
-        ]);
-        const validationRate = total > 0 ? Math.round((validated / total) * 100) : 0;
-        const byCommune = await this.prisma.submission.groupBy({
+        let activeTodayWorkforce = 0;
+        if (period === 'day') {
+            const activeCommercials = await this.prisma.submission.groupBy({
+                by: ['commercialId'],
+                where: {
+                    createdAt: { gte: today },
+                    ...(effectiveClusterId && { clusterId: effectiveClusterId })
+                }
+            });
+            activeTodayWorkforce = activeCommercials.length;
+        }
+        else if (period === 'week') {
+            const weekStart = new Date();
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            weekStart.setHours(0, 0, 0, 0);
+            const submissions = await this.prisma.submission.findMany({
+                where: {
+                    createdAt: { gte: weekStart },
+                    ...(effectiveClusterId && { clusterId: effectiveClusterId })
+                },
+                select: { commercialId: true, createdAt: true }
+            });
+            const commercialDays = new Map();
+            for (const sub of submissions) {
+                const dayKey = sub.createdAt.toISOString().split('T')[0];
+                if (!commercialDays.has(sub.commercialId)) {
+                    commercialDays.set(sub.commercialId, new Set());
+                }
+                commercialDays.get(sub.commercialId).add(dayKey);
+            }
+            activeTodayWorkforce = Array.from(commercialDays.values()).filter(days => days.size >= 6).length;
+        }
+        else if (period === 'month') {
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const submissions = await this.prisma.submission.findMany({
+                where: {
+                    createdAt: { gte: monthStart },
+                    ...(effectiveClusterId && { clusterId: effectiveClusterId })
+                },
+                select: { commercialId: true, createdAt: true }
+            });
+            const commercialDays = new Map();
+            for (const sub of submissions) {
+                const dayKey = sub.createdAt.toISOString().split('T')[0];
+                if (!commercialDays.has(sub.commercialId)) {
+                    commercialDays.set(sub.commercialId, new Set());
+                }
+                commercialDays.get(sub.commercialId).add(dayKey);
+            }
+            activeTodayWorkforce = Array.from(commercialDays.values()).filter(days => days.size >= 24).length;
+        }
+        const installations = await this.prisma.submission.count({
+            where: {
+                ...where,
+                type: client_1.SubmissionType.PROSPECT,
+                status: client_1.SubmissionStatus.VALIDATED,
+                appStatus: { in: ['INSTALLED', 'INSTALLED_ACTIVATED'] }
+            }
+        });
+        const activations = await this.prisma.submission.count({
+            where: {
+                ...where,
+                type: client_1.SubmissionType.PROSPECT,
+                status: client_1.SubmissionStatus.VALIDATED,
+                appStatus: 'INSTALLED_ACTIVATED'
+            }
+        });
+        const clientsApproached = await this.prisma.submission.count({
+            where: { ...where }
+        });
+        const activationRate = installations > 0
+            ? Math.round((activations / installations) * 1000) / 10
+            : 0;
+        const installationsPlusActivations = installations + activations;
+        const production = {
+            plannedWorkforce,
+            recruitedWorkforce,
+            activeTodayWorkforce,
+            clientsApproached,
+            installations,
+            installationsPlusActivations,
+            activationRate,
+        };
+        const quotaPerAgent = period === 'day' ? 12 : period === 'week' ? 84 : 360;
+        const objective = activeTodayWorkforce * quotaPerAgent;
+        const achieved = clientsApproached;
+        const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
+        const productivityPerAgent = activeTodayWorkforce > 0 ? Math.round(achieved / activeTodayWorkforce) : 0;
+        const clusters = await this.prisma.cluster.findMany({
+            where: effectiveClusterId ? { id: effectiveClusterId } : {},
+            include: {
+                _count: { select: { members: { where: { role: client_1.Role.COMMERCIAL, isActive: true } } } }
+            }
+        });
+        const clusterPerformance = await Promise.all(clusters.map(async (cluster) => {
+            const clusterWhere = { ...where, clusterId: cluster.id };
+            const clusterAgents = cluster._count.members;
+            const clusterObjective = clusterAgents * quotaPerAgent;
+            const clusterAchieved = await this.prisma.submission.count({
+                where: { ...clusterWhere, status: client_1.SubmissionStatus.VALIDATED }
+            });
+            return {
+                clusterId: cluster.id,
+                clusterName: cluster.name,
+                achieved: clusterAchieved,
+                objective: clusterObjective
+            };
+        }));
+        const performance = {
+            objective,
+            achieved,
+            achievementPercent,
+            productivityPerAgent,
+            clusterPerformance
+        };
+        const filesSubmitted = await this.prisma.submission.count({
+            where: { ...where, status: client_1.SubmissionStatus.SUBMITTED }
+        });
+        const filesValidated = await this.prisma.submission.count({
+            where: { ...where, status: client_1.SubmissionStatus.VALIDATED }
+        });
+        const filesRejected = await this.prisma.submission.count({
+            where: { ...where, status: client_1.SubmissionStatus.REJECTED }
+        });
+        const qualityValidationRate = (filesValidated + filesRejected) > 0
+            ? Math.round((filesValidated / (filesValidated + filesRejected)) * 100)
+            : 0;
+        const quality = {
+            filesSubmitted,
+            filesValidated,
+            filesRejected,
+            validationRate: qualityValidationRate
+        };
+        const coveredZones = await this.prisma.submission.groupBy({
             by: ['commune'],
             where: { ...where, status: client_1.SubmissionStatus.VALIDATED },
-            _count: { id: true },
-            orderBy: { _count: { id: 'desc' } },
-            take: 5,
+            _count: { id: true }
         });
-        const byProfession = await this.prisma.submission.groupBy({
-            by: ['prospectProfession'],
-            where: { ...where, type: client_1.SubmissionType.PROSPECT, status: client_1.SubmissionStatus.VALIDATED },
-            _count: { id: true },
-            orderBy: { _count: { id: 'desc' } },
-            take: 5,
-        });
-        const appActivatedByProfession = await this.prisma.submission.groupBy({
-            by: ['prospectProfession'],
-            where: { ...where, type: client_1.SubmissionType.PROSPECT, status: client_1.SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
-            _count: { id: true },
-        });
-        const merchantsByCommune = await this.prisma.submission.groupBy({
-            by: ['commune'],
-            where: { ...where, type: client_1.SubmissionType.MARCHAND, status: client_1.SubmissionStatus.VALIDATED },
-            _count: { id: true },
-        });
-        const appActivated = await this.prisma.submission.count({
-            where: { ...where, type: client_1.SubmissionType.PROSPECT, status: client_1.SubmissionStatus.VALIDATED, appStatus: 'INSTALLED_ACTIVATED' },
-        });
-        const topCommunes = byCommune.map((c) => {
-            const merchantItem = merchantsByCommune.find((m) => m.commune === c.commune);
-            const merchantCount = merchantItem ? merchantItem._count.id : 0;
-            return {
-                name: c.commune || 'Non renseigné',
-                prospects: c._count.id,
-                merchants: merchantCount,
-            };
-        });
-        const professionStats = byProfession.map((p) => {
-            const activatedItem = appActivatedByProfession.find((a) => a.prospectProfession === p.prospectProfession);
-            const activated = activatedItem ? activatedItem._count.id : 0;
-            const total = p._count.id;
-            return {
-                profession: p.prospectProfession || 'Non renseigné',
-                prospects: total,
-                activatedPercent: total > 0 ? Math.round((activated / total) * 100) : 0,
-            };
-        });
+        const alerts = [];
+        if (filesSubmitted > 50) {
+            alerts.push({ type: 'PENDING', count: filesSubmitted, message: 'Dossiers en attente de validation' });
+        }
+        if (qualityValidationRate < 70) {
+            alerts.push({ type: 'QUALITY', count: filesRejected, message: 'Taux de validation faible' });
+        }
+        if (achievementPercent < 50) {
+            alerts.push({ type: 'PERFORMANCE', count: achievementPercent, message: 'Objectif non atteint' });
+        }
+        const workforceRate = recruitedWorkforce > 0
+            ? Math.min((activeTodayWorkforce / recruitedWorkforce) * 100, 100)
+            : 0;
+        const score = Math.round((Math.min(achievementPercent, 100) +
+            qualityValidationRate +
+            workforceRate) / 3);
+        const pilotage = {
+            coveredZones: coveredZones.length,
+            mainAlerts: alerts,
+            globalScore: score
+        };
         const result = {
-            total,
-            byStatus: {
-                draft,
-                submitted,
-                validated,
-                rejected,
-            },
-            byType: {
-                prospects,
-                marchands,
-            },
-            today: {
-                total: todayTotal,
-                validated: todayValidated,
-            },
-            week: {
-                total: weekTotal,
-                validated: weekValidated,
-            },
-            validationRate,
-            pending: submitted,
+            production,
+            performance,
+            quality,
+            pilotage
         };
-        const extendedResult = {
-            ...result,
-            appActivated,
-            topCommunes,
-            professionStats,
-        };
-        await this.cache.set(cacheKey, extendedResult);
-        return extendedResult;
+        await this.cache.set(cacheKey, result);
+        return result;
     }
     validateFieldsByType(dto) {
         if (dto.type === client_1.SubmissionType.PROSPECT) {

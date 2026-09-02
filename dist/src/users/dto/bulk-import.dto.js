@@ -20,6 +20,9 @@ class BulkImportRowDto {
     password;
     cluster;
     zone;
+    sponsorCode;
+    commune;
+    habitation;
 }
 exports.BulkImportRowDto = BulkImportRowDto;
 __decorate([
@@ -54,6 +57,24 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], BulkImportRowDto.prototype, "zone", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(20),
+    __metadata("design:type", String)
+], BulkImportRowDto.prototype, "sponsorCode", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100),
+    __metadata("design:type", String)
+], BulkImportRowDto.prototype, "commune", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(255),
+    __metadata("design:type", String)
+], BulkImportRowDto.prototype, "habitation", void 0);
 class BulkImportDto {
     rows;
 }

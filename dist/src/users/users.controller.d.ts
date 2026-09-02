@@ -22,6 +22,7 @@ export declare class UsersController {
         created: number;
         updated: number;
         failed: number;
+        commerciauxUpdated: number;
         results: {
             row: number;
             status: "created" | "updated" | "error";
@@ -34,20 +35,17 @@ export declare class UsersController {
     create(currentUser: Omit<User, 'password'>, dto: CreateUserDto): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -62,25 +60,24 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     findAll(user: Omit<User, 'password'>, query: QueryUsersDto): Promise<{
         data: {
             id: string;
             matricule: string;
+            fullName: string;
             email: string | null;
             phone: string;
-            fullName: string;
             role: import("@prisma/client").$Enums.Role;
             status: import("@prisma/client").$Enums.AgentStatus;
             isActive: boolean;
+            sponsorCode: string | null;
+            commune: string | null;
+            habitation: string | null;
             createdAt: Date;
             updatedAt: Date;
-            appInstalled: boolean;
-            isOnline: boolean;
-            lastActive: Date | null;
-            lastLogin: Date | null;
-            clusterId: string | null;
-            supervisorId: string | null;
             cluster: {
                 id: string;
                 supervisor: {
@@ -95,6 +92,8 @@ export declare class UsersController {
                 matricule: string;
                 fullName: string;
             } | null;
+            clusterId: string | null;
+            supervisorId: string | null;
         }[];
         meta: {
             total: number;
@@ -106,20 +105,17 @@ export declare class UsersController {
     findOne(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -140,24 +136,23 @@ export declare class UsersController {
             fullName: string;
             isActive: boolean;
         }[];
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     update(currentUser: Omit<User, 'password'>, id: string, dto: UpdateUserDto): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -172,24 +167,23 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     deactivate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -204,24 +198,23 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     activate(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -236,24 +229,23 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     suspend(id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -268,6 +260,8 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     resetPassword(currentUser: Omit<User, 'password'>, id: string): Promise<{
         message: string;
@@ -276,20 +270,17 @@ export declare class UsersController {
     removeFromTeam(currentUser: Omit<User, 'password'>, id: string): Promise<{
         id: string;
         matricule: string;
+        fullName: string;
         email: string | null;
         phone: string;
-        fullName: string;
         role: import("@prisma/client").$Enums.Role;
         status: import("@prisma/client").$Enums.AgentStatus;
         isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
         createdAt: Date;
         updatedAt: Date;
-        appInstalled: boolean;
-        isOnline: boolean;
-        lastActive: Date | null;
-        lastLogin: Date | null;
-        clusterId: string | null;
-        supervisorId: string | null;
         cluster: {
             id: string;
             supervisor: {
@@ -304,6 +295,8 @@ export declare class UsersController {
             matricule: string;
             fullName: string;
         } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
     }>;
     getStats(currentUser: Omit<User, 'password'>, id: string): Promise<{
         totalSubmissions: number;
@@ -321,6 +314,57 @@ export declare class UsersController {
     }>;
     changePassword(currentUser: Omit<User, 'password'>, id: string, body: {
         password: string;
+    }): Promise<{
+        message: string;
+    }>;
+    updateProfile(currentUser: Omit<User, 'password'>, id: string, body: {
+        fullName?: string;
+        gender?: string;
+        phone?: string;
+        email?: string;
+    }): Promise<{
+        id: string;
+        matricule: string;
+        fullName: string;
+        email: string | null;
+        phone: string;
+        role: import("@prisma/client").$Enums.Role;
+        status: import("@prisma/client").$Enums.AgentStatus;
+        isActive: boolean;
+        sponsorCode: string | null;
+        commune: string | null;
+        habitation: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        cluster: {
+            id: string;
+            supervisor: {
+                id: string;
+                matricule: string;
+                fullName: string;
+            } | null;
+            name: string;
+        } | null;
+        supervisor: {
+            id: string;
+            matricule: string;
+            fullName: string;
+        } | null;
+        clusterId: string | null;
+        supervisorId: string | null;
+    }>;
+    enableTwoFactor(currentUser: Omit<User, 'password'>, id: string): Promise<{
+        secret: string;
+        qrCode: string;
+        message: string;
+    }>;
+    verifyTwoFactor(currentUser: Omit<User, 'password'>, id: string, body: {
+        token: string;
+    }): Promise<{
+        message: string;
+    }>;
+    disableTwoFactor(currentUser: Omit<User, 'password'>, id: string, body: {
+        token: string;
     }): Promise<{
         message: string;
     }>;
