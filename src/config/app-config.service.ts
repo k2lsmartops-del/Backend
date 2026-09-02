@@ -174,8 +174,8 @@ export class AppConfigService implements OnModuleInit {
   /**
    * Calcule l'objectif pour une période donnée.
    * - Jour: effectifPrevu × objectifQuotidien × 1
-   * - Semaine: effectifPrevu × objectifQuotidien × 7
-   * - Mois: effectifPrevu × objectifQuotidien × 30
+   * - Semaine: effectifPrevu × objectifQuotidien × 6 (6 jours ouvrés)
+   * - Mois: effectifPrevu × objectifQuotidien × 25 (25 jours ouvrés)
    */
   async getObjectifPourPeriode(
     period: 'day' | 'week' | 'month',
@@ -189,7 +189,7 @@ export class AppConfigService implements OnModuleInit {
   }> {
     const { objectifGlobal, commerciauxActifs, objectifParCommercial, effectifPrevu } = await this.getObjectifGlobalQuotidien(clusterId);
     
-    const multiplicateur = period === 'day' ? 1 : period === 'week' ? 7 : 30;
+    const multiplicateur = period === 'day' ? 1 : period === 'week' ? 6 : 25;
     const objectifTotal = effectifPrevu * objectifParCommercial * multiplicateur;
 
     return {
