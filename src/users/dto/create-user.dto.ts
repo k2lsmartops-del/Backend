@@ -33,8 +33,8 @@ export class CreateUserDto {
   phone: string;
 
   @IsString()
-  @MinLength(8, {
-    message: 'Le mot de passe doit contenir au moins 8 caractères',
+  @MinLength(6, {
+    message: 'Le mot de passe doit contenir au moins 6 caractères',
   })
   password: string;
 

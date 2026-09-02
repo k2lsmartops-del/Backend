@@ -355,6 +355,27 @@ export class UsersService {
       data.password = await bcrypt.hash(dto.password, 12);
     }
 
+    // Gestion du sponsorCode avec vérification d'unicité
+    if (dto.sponsorCode !== undefined) {
+      if (dto.sponsorCode === null || dto.sponsorCode === '') {
+        data.sponsorCode = null;
+      } else {
+        // Vérifier l'unicité du sponsorCode
+        const existingWithCode = await this.prisma.user.findFirst({
+          where: {
+            sponsorCode: dto.sponsorCode,
+            id: { not: id },
+          },
+        });
+        if (existingWithCode) {
+          throw new ConflictException(
+            `Le code parrainage "${dto.sponsorCode}" est déjà utilisé par un autre utilisateur`,
+          );
+        }
+        data.sponsorCode = dto.sponsorCode;
+      }
+    }
+
     return this.prisma.user.update({
       where: { id },
       data,

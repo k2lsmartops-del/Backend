@@ -28,8 +28,8 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(8, {
-    message: 'Le mot de passe doit contenir au moins 8 caractères',
+  @MinLength(6, {
+    message: 'Le mot de passe doit contenir au moins 6 caractères',
   })
   password?: string;
 
@@ -52,5 +52,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsUUID('4', { message: 'ID de superviseur invalide' })
   supervisorId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  sponsorCode?: string | null;
 
 }
