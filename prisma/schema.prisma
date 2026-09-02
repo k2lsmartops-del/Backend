@@ -178,6 +178,7 @@ model User {
   status      AgentStatus @default(ACTIF)
   isActive    Boolean     @default(true)
   sponsorCode String?     @unique // Code de parrainage unique (traçabilité des recrutements)
+  objectifQuotidien Int     @default(20) // Objectif quotidien de soumissions (prospects + marchands)
   commune     String?             // Commune principale (ex: Abobo, Yopougon)
   habitation  String?             // Adresse d'habitation (informatif)
   createdAt   DateTime    @default(now())

@@ -29,6 +29,7 @@ const USER_SELECT = {
   status: true,
   isActive: true,
   sponsorCode: true,
+  objectifQuotidien: true,
   commune: true,
   habitation: true,
   clusterId: true,
@@ -1496,5 +1497,60 @@ export class UsersService {
       token: token,
       window: 2,
     });
+  }
+
+  /**
+   * Récupère les KPI du jour pour l'utilisateur connecté.
+   * Retourne le nombre de soumissions du jour par type et l'objectif quotidien.
+   */
+  async getTodayKpi(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { objectifQuotidien: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // Début et fin de la journée courante (timezone UTC)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Compter les soumissions du jour par type
+    const [prospects, marchands, valides] = await Promise.all([
+      this.prisma.submission.count({
+        where: {
+          commercialId: userId,
+          type: 'PROSPECT',
+          createdAt: { gte: today, lt: tomorrow },
+        },
+      }),
+      this.prisma.submission.count({
+        where: {
+          commercialId: userId,
+          type: 'MARCHAND',
+          createdAt: { gte: today, lt: tomorrow },
+        },
+      }),
+      this.prisma.submission.count({
+        where: {
+          commercialId: userId,
+          status: 'VALIDATED',
+          createdAt: { gte: today, lt: tomorrow },
+        },
+      }),
+    ]);
+
+    return {
+      prospects,
+      marchands,
+      valides,
+      objectif: user.objectifQuotidien || 20,
+      total: prospects + marchands,
+      progress: Math.min(((prospects + marchands) / (user.objectifQuotidien || 20)) * 100, 100),
+    };
   }
 }

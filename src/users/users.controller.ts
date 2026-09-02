@@ -287,4 +287,12 @@ export class UsersController {
     return this.usersService.disableTwoFactor(id, body.token);
   }
 
+  /**
+   * GET /me/kpi-today — Récupère les KPI du jour pour l'utilisateur connecté.
+   * Retourne le nombre de soumissions du jour par type et l'objectif quotidien.
+   */
+  @Get('me/kpi-today')
+  getTodayKpi(@CurrentUser() user: Omit<User, 'password'>) {
+    return this.usersService.getTodayKpi(user.id);
+  }
 }
