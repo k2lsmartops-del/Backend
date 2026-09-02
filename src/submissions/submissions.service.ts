@@ -16,6 +16,7 @@ import {
   ValidationAction,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { AppConfigService } from '../config/app-config.service';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { QuerySubmissionsDto } from './dto/query-submissions.dto';
 
@@ -150,6 +151,7 @@ export class SubmissionsService {
   constructor(
     private prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cache: Cache,
+    private appConfig: AppConfigService,
   ) {}
 
   /**
@@ -768,17 +770,12 @@ export class SubmissionsService {
     }
 
     // ── Production KPIs ──
-    // Effectif prévu (configuré par le client - valeur statique pour l'instant)
-    const plannedWorkforce = 135; // TODO: Rendre configurable par client
+    // Récupérer les paramètres de configuration
+    const configData = await this.appConfig.getObjectifGlobalQuotidien(effectiveClusterId);
+    const plannedWorkforce = configData.effectifPrevu;
 
     // Effectif recruté (commerciaux actifs et fonctionnels)
-    const recruitedWorkforce = await this.prisma.user.count({
-      where: { 
-        role: Role.COMMERCIAL,
-        isActive: true,
-        ...(effectiveClusterId && { clusterId: effectiveClusterId })
-      }
-    });
+    const recruitedWorkforce = configData.commerciauxActifs;
 
     // Effectif actif (commerciaux qui ont travaillé pendant la période)
     // - Jour: commerciaux ayant fait au moins 1 soumission aujourd'hui
@@ -896,10 +893,10 @@ export class SubmissionsService {
     };
 
     // ── Performance KPIs ──
-    // Objectif selon la période (1485/jour pour 135 commerciaux = 11/jour par commercial)
-    // Jour: 11, Semaine: 11*7=77, Mois: 11*30=330
-    const quotaPerAgent = period === 'day' ? 11 : period === 'week' ? 77 : 330;
-    const objective = recruitedWorkforce * quotaPerAgent;
+    // Objectif selon la période (configurable via AppConfigService)
+    const objectifPeriode = await this.appConfig.getObjectifPourPeriode(period, effectiveClusterId);
+    const quotaPerAgent = configData.objectifParCommercial * objectifPeriode.multiplicateur;
+    const objective = objectifPeriode.objectifTotal;
     const achieved = clientsApproached;
     const achievementPercent = objective > 0 ? Math.round((achieved / objective) * 100) : 0;
     const productivityPerAgent = activeTodayWorkforce > 0 ? Math.round(achieved / activeTodayWorkforce) : 0;

@@ -13,6 +13,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ClustersModule } from './clusters/clusters.module';
 import { CommunesModule } from './communes/communes.module';
 import { ExportModule } from './export/export.module';
+import { AppConfigModule } from './config/app-config.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import configuration from './config/configuration';
@@ -53,6 +54,8 @@ import { validate } from './config/env.validation';
     CommunesModule,
     // Module d'export (CSV/PDF)
     ExportModule,
+    // Module de configuration globale (KPI, objectifs)
+    AppConfigModule,
   ],
   controllers: [AppController],
   providers: [
