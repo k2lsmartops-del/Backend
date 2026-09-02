@@ -12,6 +12,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ClustersModule } from './clusters/clusters.module';
 import { CommunesModule } from './communes/communes.module';
+import { ExportModule } from './export/export.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import configuration from './config/configuration';
@@ -50,6 +51,8 @@ import { validate } from './config/env.validation';
     // Modules gestion territoriale
     ClustersModule,
     CommunesModule,
+    // Module d'export (CSV/PDF)
+    ExportModule,
   ],
   controllers: [AppController],
   providers: [

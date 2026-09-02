@@ -84,6 +84,7 @@ enum ValidationAction {
   SUBMITTED
   VALIDATED
   REJECTED
+  RESUBMITTED // Re-soumission après rejet
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -299,6 +300,7 @@ model Submission {
   validator         User?     @relation("SubmissionValidator", fields: [validatorId], references: [id], onDelete: SetNull)
   validatedAt       DateTime?
   validationComment String?
+  rejectionReason   String?   // Motif de rejet (obligatoire si REJECTED)
 
   // Timestamps
   createdAt   DateTime  @default(now())

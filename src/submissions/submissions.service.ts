@@ -60,6 +60,7 @@ const SUBMISSION_SELECT = {
   // Validation (workflow simplifié à 1 niveau)
   validatedAt: true,
   validationComment: true,
+  rejectionReason: true,
   // Relations
   commercial: { select: { id: true, fullName: true, matricule: true, sponsorCode: true } },
   validator: { select: { id: true, fullName: true, matricule: true } },
@@ -700,6 +701,7 @@ export class SubmissionsService {
         validatorId: user.id,
         validatedAt: new Date(),
         validationComment: comment,
+        rejectionReason: comment, // Motif de rejet pour affichage côté commercial
         validationHistory: {
           create: {
             actorId: user.id,
@@ -1098,5 +1100,67 @@ export class SubmissionsService {
         throw new ForbiddenException('Accès refusé à cette soumission');
       }
     }
+  }
+
+  /**
+   * Re-soumet une soumission rejetée.
+   * Seul le commercial propriétaire peut re-soumettre.
+   * La soumission doit être au statut REJECTED.
+   */
+  async resubmit(id: string, user: Omit<User, 'password'>) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        commercialId: true,
+        rejectionReason: true,
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Soumission non trouvée');
+    }
+
+    // Seul le commercial propriétaire peut re-soumettre
+    if (submission.commercialId !== user.id) {
+      throw new ForbiddenException('Vous ne pouvez re-soumettre que vos propres soumissions');
+    }
+
+    // La soumission doit être rejetée
+    if (submission.status !== SubmissionStatus.REJECTED) {
+      throw new BadRequestException('Seules les soumissions rejetées peuvent être re-soumises');
+    }
+
+    // Archiver le motif de rejet dans l'historique
+    await this.prisma.validationHistory.create({
+      data: {
+        submissionId: id,
+        actorId: user.id,
+        action: ValidationAction.RESUBMITTED,
+        comment: `Re-soumission après rejet. Motif précédent: ${submission.rejectionReason || 'Non spécifié'}`,
+      },
+    });
+
+    // Mettre à jour la soumission
+    const updated = await this.prisma.submission.update({
+      where: { id },
+      data: {
+        status: SubmissionStatus.SUBMITTED,
+        submittedAt: new Date(),
+        validatorId: null,
+        validatedAt: null,
+        validationComment: null,
+        rejectionReason: null,
+      },
+      select: SUBMISSION_SELECT,
+    });
+
+    this.logger.log(`Soumission ${id} re-soumise par ${user.fullName}`);
+
+    // Invalider le cache des stats
+    await this.cache.del('submissions:stats');
+
+    return updated;
   }
 }

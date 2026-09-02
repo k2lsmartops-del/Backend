@@ -178,4 +178,17 @@ export class SubmissionsController {
   ) {
     return this.submissionsService.reject(id, user, dto.comment);
   }
+
+  /**
+   * POST /submissions/:id/resubmit — Re-soumettre une soumission rejetée.
+   * Réservé au COMMERCIAL propriétaire de la soumission.
+   */
+  @Post(':id/resubmit')
+  @Roles(Role.COMMERCIAL)
+  resubmit(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: Omit<User, 'password'>,
+  ) {
+    return this.submissionsService.resubmit(id, user);
+  }
 }
