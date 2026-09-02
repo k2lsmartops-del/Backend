@@ -182,6 +182,7 @@ model User {
   habitation  String?             // Adresse d'habitation (informatif)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?   // Soft-delete: si renseigné, le compte est considéré supprimé
 
   // Suivi de l'application et de la connexion
   appInstalled Boolean  @default(false)
@@ -217,6 +218,7 @@ model User {
   @@index([isActive])
   @@index([status])
   @@index([sponsorCode])
+  @@index([deletedAt])
   @@map("users")
 }
 

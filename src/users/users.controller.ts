@@ -128,11 +128,30 @@ export class UsersController {
 
   /**
    * PATCH /users/:id/suspend — Suspendre un utilisateur.
+   * @deprecated Utiliser DELETE /users/:id à la place
    */
   @Patch(':id/suspend')
   @Roles(Role.ADMIN, Role.COORDINATEUR)
   suspend(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.suspend(id);
+  }
+
+  /**
+   * PATCH /users/:id/delete — Supprimer un utilisateur (soft-delete).
+   * Les données sont conservées en BDD mais le compte n'apparaît plus dans les listings.
+   * 
+   * Permissions :
+   * - ADMIN : peut supprimer tout utilisateur (sauf ADMIN)
+   * - COORDINATEUR : peut supprimer superviseurs et commerciaux
+   * - SUPERVISEUR : peut supprimer uniquement ses commerciaux
+   */
+  @Patch(':id/delete')
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  softDelete(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.usersService.softDelete(id, currentUser);
   }
 
   /**

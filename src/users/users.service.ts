@@ -35,6 +35,7 @@ const USER_SELECT = {
   supervisorId: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
   cluster: {
     select: {
       id: true,
@@ -44,6 +45,12 @@ const USER_SELECT = {
   },
   supervisor: { select: { id: true, fullName: true, matricule: true } },
 };
+
+/**
+ * Filtre pour exclure les utilisateurs soft-deleted.
+ * À utiliser dans toutes les requêtes de listing.
+ */
+const NOT_DELETED_FILTER = { deletedAt: null };
 
 /**
  * Service de gestion des utilisateurs.
@@ -146,8 +153,8 @@ export class UsersService {
     } = query;
     const skip = (page - 1) * limit;
 
-    // Construction du filtre WHERE
-    const where: Record<string, unknown> = {};
+    // Construction du filtre WHERE - exclure les utilisateurs soft-deleted
+    const where: Record<string, unknown> = { ...NOT_DELETED_FILTER };
 
     // Filtrage automatique selon le rôle du demandeur
     if (currentUser) {
@@ -434,6 +441,7 @@ export class UsersService {
   /**
    * Suspend un utilisateur (blocage temporaire).
    * Le compte n'est plus utilisable mais peut être réactivé.
+   * @deprecated Utiliser softDelete à la place
    */
   async suspend(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
@@ -444,6 +452,92 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data: { isActive: false, status: AgentStatus.SUSPENDU },
+      select: USER_SELECT,
+    });
+  }
+
+  /**
+   * Supprime un utilisateur (soft-delete).
+   * Le compte est marqué comme supprimé mais les données sont conservées en BDD.
+   * 
+   * Permissions :
+   * - ADMIN : peut supprimer tout utilisateur (sauf ADMIN)
+   * - COORDINATEUR : peut supprimer superviseurs et commerciaux
+   * - SUPERVISEUR : peut supprimer uniquement ses commerciaux
+   */
+  async softDelete(id: string, currentUser?: { id?: string; role: Role }) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // Vérification des permissions
+    if (currentUser) {
+      switch (currentUser.role) {
+        case Role.SUPERVISEUR:
+          // SUPERVISEUR ne peut supprimer que ses propres commerciaux
+          if (user.supervisorId !== currentUser.id) {
+            throw new ForbiddenException('Vous ne pouvez supprimer que les commerciaux de votre équipe');
+          }
+          if (user.role !== Role.COMMERCIAL) {
+            throw new ForbiddenException('Un superviseur ne peut supprimer que des commerciaux');
+          }
+          break;
+        case Role.COORDINATEUR:
+          // COORDINATEUR peut supprimer superviseurs et commerciaux
+          if (user.role !== Role.SUPERVISEUR && user.role !== Role.COMMERCIAL) {
+            throw new ForbiddenException('Vous ne pouvez supprimer que des superviseurs ou commerciaux');
+          }
+          break;
+        case Role.ADMIN:
+          // ADMIN ne peut pas supprimer d'autres ADMIN
+          if (user.role === Role.ADMIN) {
+            throw new ForbiddenException('Impossible de supprimer un compte administrateur');
+          }
+          break;
+        default:
+          throw new ForbiddenException('Action non autorisée');
+      }
+    }
+
+    // GARDE-FOU : Refuser suppression SUPERVISEUR si commerciaux actifs
+    if (user.role === Role.SUPERVISEUR) {
+      const activeCommerciaux = await this.prisma.user.count({
+        where: {
+          supervisorId: id,
+          role: Role.COMMERCIAL,
+          isActive: true,
+          deletedAt: null,
+        },
+      });
+      if (activeCommerciaux > 0) {
+        throw new BadRequestException(
+          `Ce superviseur a ${activeCommerciaux} commercial(aux) actif(s). Réaffectez-les d'abord.`,
+        );
+      }
+    }
+
+    // GARDE-FOU : Refuser suppression SUPERVISEUR si pilote un cluster
+    if (user.role === Role.SUPERVISEUR) {
+      const managedCluster = await this.prisma.cluster.findFirst({
+        where: { supervisorId: id },
+        select: { name: true },
+      });
+      if (managedCluster) {
+        throw new BadRequestException(
+          `Ce superviseur pilote le cluster "${managedCluster.name}". Retirez-le du cluster d'abord.`,
+        );
+      }
+    }
+
+    // Soft-delete : marquer deletedAt et désactiver le compte
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+        status: AgentStatus.DESACTIVE,
+      },
       select: USER_SELECT,
     });
   }

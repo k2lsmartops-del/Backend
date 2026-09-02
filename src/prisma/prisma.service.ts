@@ -5,6 +5,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 /**
  * Service Prisma injectable globalement.
  * Gère la connexion à la base de données PostgreSQL (Supabase).
+ * 
+ * Note: Le filtrage des utilisateurs soft-deleted (deletedAt IS NULL)
+ * est géré manuellement dans users.service.ts via le filtre NOT_DELETED_FILTER.
  */
 @Injectable()
 export class PrismaService
