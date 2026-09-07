@@ -411,6 +411,13 @@ export class UsersService {
       throw new BadRequestException('Le code parrainage ne concerne que les commerciaux');
     }
 
+    // COMMERCIAL : ne peut modifier que son propre sponsor code
+    if (currentUser?.role === Role.COMMERCIAL) {
+      if (existing.id !== currentUser.id) {
+        throw new ForbiddenException('Vous ne pouvez modifier que votre propre code parrainage');
+      }
+    }
+
     // SUPERVISEUR : accès autorisé si le commercial est dans son cluster
     if (currentUser?.role === Role.SUPERVISEUR) {
       if (existing.clusterId !== currentUser.clusterId) {

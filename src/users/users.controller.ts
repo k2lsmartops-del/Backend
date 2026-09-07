@@ -182,11 +182,13 @@ export class UsersController {
 
   /**
    * PATCH /users/:id/sponsor-code — Modifier le code parrainage.
-   * SUPERVISEUR peut modifier le code parrainage de tout commercial
-   * appartenant à son cluster (pas seulement ses commerciaux directs).
+   * - ADMIN / COORDINATEUR : peuvent modifier n'importe quel commercial.
+   * - SUPERVISEUR : peut modifier le code parrainage de tout commercial
+   *   appartenant à son cluster (pas seulement ses commerciaux directs).
+   * - COMMERCIAL : peut modifier son propre code parrainage.
    */
   @Patch(':id/sponsor-code')
-  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR, Role.COMMERCIAL)
   updateSponsorCode(
     @CurrentUser() currentUser: Omit<User, 'password'>,
     @Param('id', ParseUUIDPipe) id: string,
