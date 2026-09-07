@@ -392,6 +392,60 @@ export class UsersService {
   }
 
   /**
+   * Met à jour le code parrainage d'un commercial.
+   * Un SUPERVISEUR peut modifier le sponsorCode de tout commercial
+   * appartenant à son cluster (même s'il n'est pas son superviseur direct).
+   */
+  async updateSponsorCode(
+    id: string,
+    sponsorCode: string | null,
+    currentUser?: { id?: string; role: Role; clusterId?: string | null },
+  ) {
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // Vérifier que c'est un COMMERCIAL
+    if (existing.role !== Role.COMMERCIAL) {
+      throw new BadRequestException('Le code parrainage ne concerne que les commerciaux');
+    }
+
+    // SUPERVISEUR : accès autorisé si le commercial est dans son cluster
+    if (currentUser?.role === Role.SUPERVISEUR) {
+      if (existing.clusterId !== currentUser.clusterId) {
+        throw new ForbiddenException('Accès non autorisé à cet utilisateur');
+      }
+    }
+
+    const data: Record<string, unknown> = {};
+
+    // Gestion du sponsorCode avec vérification d'unicité
+    if (sponsorCode === null || sponsorCode === '') {
+      data.sponsorCode = null;
+    } else {
+      const existingWithCode = await this.prisma.user.findFirst({
+        where: {
+          sponsorCode,
+          id: { not: id },
+        },
+      });
+      if (existingWithCode) {
+        throw new ConflictException(
+          `Le code parrainage "${sponsorCode}" est déjà utilisé par un autre utilisateur`,
+        );
+      }
+      data.sponsorCode = sponsorCode;
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data,
+      select: USER_SELECT,
+    });
+  }
+
+  /**
    * Désactive un utilisateur (soft delete).
    * SUPERVISEUR ne peut désactiver que ses commerciaux.
    */

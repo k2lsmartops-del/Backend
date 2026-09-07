@@ -181,6 +181,26 @@ export class UsersController {
   }
 
   /**
+   * PATCH /users/:id/sponsor-code — Modifier le code parrainage.
+   * SUPERVISEUR peut modifier le code parrainage de tout commercial
+   * appartenant à son cluster (pas seulement ses commerciaux directs).
+   */
+  @Patch(':id/sponsor-code')
+  @Roles(Role.ADMIN, Role.COORDINATEUR, Role.SUPERVISEUR)
+  updateSponsorCode(
+    @CurrentUser() currentUser: Omit<User, 'password'>,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { sponsorCode?: string },
+  ) {
+    const value = body.sponsorCode === undefined ? null : body.sponsorCode === '' ? null : body.sponsorCode;
+    return this.usersService.updateSponsorCode(id, value, {
+      id: currentUser.id,
+      role: currentUser.role,
+      clusterId: currentUser.clusterId,
+    });
+  }
+
+  /**
    * GET /users/:id/stats — Statistiques d'un utilisateur.
    * SUPERVISEUR peut voir uniquement ses commerciaux.
    */
