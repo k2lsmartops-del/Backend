@@ -102,12 +102,12 @@ export class UsersService {
     // Génère le matricule automatiquement
     const matricule = await this.generateMatricule(dto.role);
 
-    // Génère le code de parrainage pour les commerciaux (si non fourni)
-    let sponsorCode: string | undefined;
+    // Code de parrainage manuel ou vide pour les commerciaux
+    let sponsorCode: string | null | undefined;
     if (dto.role === Role.COMMERCIAL) {
       sponsorCode = dto.sponsorCode && dto.sponsorCode.trim()
         ? dto.sponsorCode.trim().toUpperCase()
-        : await this.generateSponsorCode();
+        : null;
     }
 
     // Hash le mot de passe
@@ -1171,30 +1171,6 @@ export class UsersService {
     }
 
     return matricule;
-  }
-
-  /**
-   * Génère un code de parrainage unique pour un commercial.
-   * Format: 8 caractères alphanumériques en majuscules
-   */
-  private async generateSponsorCode(): Promise<string> {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code: string;
-    let isUnique = false;
-
-    while (!isUnique) {
-      code = '';
-      for (let i = 0; i < 8; i++) {
-        code += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
-
-      const exists = await this.prisma.user.findFirst({ where: { sponsorCode: code } });
-      if (!exists) {
-        isUnique = true;
-      }
-    }
-
-    return code!;
   }
 
   /**
