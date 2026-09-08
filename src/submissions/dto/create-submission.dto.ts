@@ -78,8 +78,8 @@ export class CreateSubmissionDto {
   prospectFullName?: string;
 
   @IsOptional()
-  @IsString()
-  @Matches(/^\\d{10}$/, { message: 'Le numéro de téléphone doit contenir exactement 10 chiffres' })
+  @Transform(({ value }) => typeof value === 'string' ? value.replace(/\D/g, '') : value)
+  @Matches(/^\d{10}$/, { message: 'Le numéro de téléphone doit contenir exactement 10 chiffres' })
   prospectPhone?: string;
 
   @IsOptional()
