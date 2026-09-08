@@ -27,10 +27,6 @@ export class UpdateSubmissionDto {
 
   @IsOptional()
   @IsString()
-  quartier?: string;
-
-  @IsOptional()
-  @IsString()
   addressNote?: string;
 
   @IsOptional()
@@ -52,23 +48,11 @@ export class UpdateSubmissionDto {
   // ── Prospect ──
   @IsOptional()
   @IsString()
-  prospectFullName?: string;
-
-  @IsOptional()
-  @IsString()
   prospectPhone?: string;
 
   @IsOptional()
   @IsString()
-  prospectProfession?: string;
-
-  @IsOptional()
-  @IsString()
   prospectGender?: string;
-
-  @IsOptional()
-  @IsString()
-  prospectAge?: string;
 
   @IsOptional()
   @IsString()

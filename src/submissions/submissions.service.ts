@@ -29,18 +29,14 @@ const SUBMISSION_SELECT = {
   status: true,
   clientUuid: true,
   commune: true,
-  quartier: true,
   addressNote: true,
   latitude: true,
   longitude: true,
   gpsAccuracy: true,
   gpsCapturedAt: true,
   // Champs prospect
-  prospectFullName: true,
   prospectPhone: true,
-  prospectProfession: true,
   prospectGender: true,
-  prospectAge: true,
   appStatus: true,
   sponsorCode: true,
   observations: true,
@@ -218,11 +214,9 @@ export class SubmissionsService {
       }
     }
 
-    // ── Résolution commune/quartier (ID ou texte libre) ──
+    // ── Résolution commune (ID ou texte libre) ──
     let communeId: string | null = null;
     let communeName: string = dto.commune || '';
-    let quartierId: string | null = null;
-    let quartierName: string | null = dto.quartier || null;
 
     // Si communeId fourni → récupérer le nom depuis la DB
     if (dto.communeId) {
@@ -236,18 +230,6 @@ export class SubmissionsService {
       }
     }
 
-    // Si quartierId fourni → récupérer le nom depuis la DB
-    if (dto.quartierId) {
-      const quartier = await this.prisma.quartier.findUnique({
-        where: { id: dto.quartierId },
-        select: { id: true, name: true },
-      });
-      if (quartier) {
-        quartierId = quartier.id;
-        quartierName = quartier.name;
-      }
-    }
-
     const submission = await this.prisma.submission.create({
       data: {
         type: dto.type,
@@ -257,18 +239,14 @@ export class SubmissionsService {
         clusterId: user.clusterId || null,
         communeId: communeId,
         commune: communeName,
-        quartier: quartierName,
         addressNote: dto.addressNote || null,
         latitude: dto.latitude || null,
         longitude: dto.longitude || null,
         gpsAccuracy: dto.gpsAccuracy || null,
         gpsCapturedAt: dto.gpsCapturedAt ? new Date(dto.gpsCapturedAt) : null,
         // Prospect
-        prospectFullName: dto.prospectFullName || null,
         prospectPhone: dto.prospectPhone || null,
-        prospectProfession: dto.prospectProfession || null,
         prospectGender: dto.prospectGender || null,
-        prospectAge: dto.prospectAge || null,
         appStatus: dto.appStatus || null,
         sponsorCode: dto.sponsorCode || null,
         observations: dto.observations || null,
@@ -438,7 +416,6 @@ export class SubmissionsService {
 
     if (search) {
       where.OR = [
-        { prospectFullName: { contains: search, mode: 'insensitive' } },
         { prospectPhone: { contains: search, mode: 'insensitive' } },
         { merchantName: { contains: search, mode: 'insensitive' } },
         { merchantPhone: { contains: search, mode: 'insensitive' } },
@@ -1015,17 +992,9 @@ export class SubmissionsService {
    */
   private validateFieldsByType(dto: CreateSubmissionDto) {
     if (dto.type === SubmissionType.PROSPECT) {
-      if (!dto.prospectFullName) {
-        throw new BadRequestException('Le nom du prospect est obligatoire');
-      }
       if (!dto.prospectPhone) {
         throw new BadRequestException(
           'Le téléphone du prospect est obligatoire',
-        );
-      }
-      if (!dto.prospectProfession) {
-        throw new BadRequestException(
-          'La profession du prospect est obligatoire',
         );
       }
     }

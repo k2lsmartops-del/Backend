@@ -89,11 +89,8 @@ describe('SubmissionsService', () => {
     const createSubmissionDto: CreateSubmissionDto = {
       type: SubmissionType.PROSPECT,
       clientUuid: 'client-uuid-1',
-      prospectFullName: 'John Doe',
       prospectPhone: '0700000001',
-      prospectProfession: 'Commercant',
       commune: 'Yopougon',
-      quartier: 'Sicogi',
       latitude: 5.36,
       longitude: -4.03,
       gpsAccuracy: 10,
@@ -242,7 +239,7 @@ describe('SubmissionsService', () => {
 
   describe('update', () => {
     const updateData = {
-      prospectFullName: 'Updated Name',
+      prospectPhone: '0700000001',
       observations: 'Updated observations',
     };
 
@@ -259,7 +256,7 @@ describe('SubmissionsService', () => {
 
       const result = await service.update('1', updateData, mockCommercialUser);
 
-      expect(result.prospectFullName).toBe('Updated Name');
+      expect(result.prospectPhone).toBe('0700000001');
       expect(mockPrismaService.submission.update).toHaveBeenCalled();
     });
 

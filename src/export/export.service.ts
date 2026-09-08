@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role, SubmissionStatus, SubmissionType } from '@prisma/client';
+import { Prisma, Role, SubmissionStatus, SubmissionType } from '@prisma/client';
 
 interface ExportFilters {
   type?: SubmissionType;
@@ -30,8 +30,6 @@ export class ExportService {
       'Code Parrainage',
       'Cluster',
       'Commune',
-      'Quartier',
-      'Nom Prospect/Marchand',
       'Téléphone',
       'Latitude',
       'Longitude',
@@ -51,8 +49,6 @@ export class ExportService {
       s.sponsorCode || '',
       s.clusterId || '',
       s.commune || '',
-      s.quartier || '',
-      s.type === 'PROSPECT' ? s.prospectFullName || '' : s.merchantName || '',
       s.type === 'PROSPECT' ? s.prospectPhone || '' : s.merchantPhone || '',
       s.latitude?.toString() || '',
       s.longitude?.toString() || '',
@@ -96,8 +92,7 @@ export class ExportService {
       commercial: s.commercial?.fullName || '',
       sponsorCode: s.sponsorCode || '',
       commune: s.commune || '',
-      quartier: s.quartier || '',
-      name: s.type === 'PROSPECT' ? s.prospectFullName || '' : s.merchantName || '',
+      name: s.type === 'MARCHAND' ? s.merchantName || '' : '',
       phone: s.type === 'PROSPECT' ? s.prospectPhone || '' : s.merchantPhone || '',
       createdAt: s.createdAt,
       submittedAt: s.submittedAt,
@@ -281,7 +276,7 @@ export class ExportService {
    * Récupère les soumissions pour l'export avec les filtres appliqués.
    */
   private async getSubmissionsForExport(filters: ExportFilters, currentUser?: { role: Role; clusterId?: string | null }) {
-    const where: Record<string, unknown> = {};
+    const where: Prisma.SubmissionWhereInput = {};
 
     // Filtres
     if (filters.type) where.type = filters.type;
@@ -308,11 +303,10 @@ export class ExportService {
         status: true,
         clusterId: true,
         commune: true,
-        quartier: true,
         latitude: true,
         longitude: true,
-        prospectFullName: true,
         prospectPhone: true,
+        prospectGender: true,
         merchantName: true,
         merchantPhone: true,
         sponsorCode: true,

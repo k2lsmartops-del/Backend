@@ -270,18 +270,14 @@ model Submission {
 
   // Localisation textuelle (saisie par le commercial)
   commune     String  // nom de la commune (cohérent avec communeRef.name)
-  quartier    String? // texte libre saisi par le commercial
   addressNote String?
 
   // Champs PROSPECT
-  prospectFullName   String?
-  prospectPhone      String?
-  prospectProfession String?
-  prospectGender     String?
-  prospectAge        Int?
-  appStatus          AppStatus?
-  sponsorCode        String? // code parrain du commercial
-  observations       String?
+  prospectPhone  String?
+  prospectGender String?
+  appStatus      AppStatus?
+  sponsorCode    String? // code parrain du commercial
+  observations   String?
 
   // Champs MARCHAND
   merchantName     String?

@@ -4,13 +4,11 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
-  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
   Matches,
-  Min,
   ValidateNested,
 } from 'class-validator';
 import { PhotoDto } from './photo.dto';
@@ -55,10 +53,6 @@ export class CreateSubmissionDto {
   @IsString()
   communeId?: string;
 
-  @IsOptional()
-  @IsString()
-  quartierId?: string;
-
   // ── Localisation texte libre (saisie manuelle si hors zone) ──
   @IsOptional()
   @IsString()
@@ -66,17 +60,9 @@ export class CreateSubmissionDto {
 
   @IsOptional()
   @IsString()
-  quartier?: string;
-
-  @IsOptional()
-  @IsString()
   addressNote?: string;
 
   // ══════ CHAMPS PROSPECT ══════
-  @IsOptional()
-  @IsString()
-  prospectFullName?: string;
-
   @IsOptional()
   @Transform(({ value }) => typeof value === 'string' ? value.replace(/\D/g, '') : value)
   @Matches(/^\d{10}$/, { message: 'Le numéro de téléphone doit contenir exactement 10 chiffres' })
@@ -84,20 +70,7 @@ export class CreateSubmissionDto {
 
   @IsOptional()
   @IsString()
-  prospectProfession?: string;
-
-  @IsOptional()
-  @IsString()
   prospectGender?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === '' || value == null || Number.isNaN(Number(value))) return undefined;
-    return Number(value);
-  })
-  @IsInt()
-  @Min(0)
-  prospectAge?: number;
 
   @IsOptional()
   @IsEnum(AppStatus)
